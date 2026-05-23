@@ -73,7 +73,12 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
       )}
     >
        {photo ? (
-         <img src={photo} alt="Recap" className="w-full h-full object-cover pointer-events-none" />
+         <img 
+           src={photo} 
+           alt="Recap" 
+           className="w-full h-full object-cover pointer-events-none" 
+           crossOrigin="anonymous"
+         />
        ) : (
          <div className="w-full h-full flex flex-col items-center justify-center p-12 text-center space-y-4">
             <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-slate-300 shadow-sm">

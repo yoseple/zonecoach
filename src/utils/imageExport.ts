@@ -5,51 +5,61 @@ export const saveRecapToDevice = async (
   filename: string
 ): Promise<void> => {
   try {
-    // 1. Ensure all images inside are loaded
+    // 1. Wait for all images to be LOADED and DECODED
     const images = Array.from(previewElement.querySelectorAll('img'));
     await Promise.all(
-      images.map(img => {
-        if (img.complete) return Promise.resolve();
-        return new Promise((resolve, reject) => {
+      images.map(async (img) => {
+        if (img.complete) {
+          try { await img.decode(); } catch (e) { /* ignore */ }
+          return;
+        }
+        return new Promise((resolve) => {
           img.onload = resolve;
-          img.onerror = reject;
+          img.onerror = resolve; // Continue anyway
         });
       })
     );
 
-    // 2. Generate JPEG Blob with Retries
-    // We use toBlob for better mobile compatibility and memory management
-    let blob: Blob | null = null;
-    let attempts = 0;
-    const maxAttempts = 3;
+    // 2. Initial delay to allow SVG and layout to settle
+    await new Promise(r => setTimeout(r, 500));
 
-    while (attempts < maxAttempts && !blob) {
+    // 3. Capture using toJpeg (Often more stable than toCanvas/toBlob in this library)
+    let dataUrl: string | null = null;
+    let attempts = 0;
+    const maxAttempts = 2;
+
+    while (attempts < maxAttempts && !dataUrl) {
       try {
         attempts++;
-        // Small progressive delay between attempts
-        if (attempts > 1) await new Promise(r => setTimeout(r, 500 * attempts));
-        
-        blob = await htmlToImage.toBlob(previewElement, {
-          quality: 0.9, // Slightly lower quality for better success rate
-          pixelRatio: 2, // Standard high-quality (3 might be too much for some mobile RAM)
-          skipAutoScale: true,
+        dataUrl = await htmlToImage.toJpeg(previewElement, {
+          quality: 0.85,
+          pixelRatio: 2,
           cacheBust: true,
+          // Extreme safety: Remove all complex styles during capture
           style: {
             borderRadius: '0',
             transform: 'none',
+            boxShadow: 'none',
+            margin: '0',
+            padding: '0',
           }
         });
       } catch (err) {
-        console.error(`Attempt ${attempts} failed:`, err);
+        console.warn(`Export attempt ${attempts} failed:`, err);
         if (attempts === maxAttempts) throw err;
+        await new Promise(r => setTimeout(r, 1000));
       }
     }
 
-    if (!blob) throw new Error('Failed to generate image blob after multiple attempts');
+    if (!dataUrl) throw new Error('Failed to generate image data URL');
 
-    // 3. Trigger Save/Share
-    // On iOS/Mobile Safari, navigator.share with a File object is the ONLY reliable 
-    // way to get an image into the 'Photos' app (Camera Roll).
+    // 4. Convert DataURL to Blob (Manually, for maximum reliability)
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+
+    if (!blob || blob.size < 1000) throw new Error('Generated image is invalid or empty');
+
+    // 5. Trigger Save/Share
     const file = new File([blob], filename, { type: 'image/jpeg' });
 
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -59,27 +69,23 @@ export const saveRecapToDevice = async (
           title: 'My Run Recap',
           text: 'Captured on ZoneCoach',
         });
-        return; // Success via Share Sheet (which includes 'Save Image')
+        return;
       } catch (shareError) {
-        // If user cancelled, don't fallback to download link (it might just fail again)
         if ((shareError as Error).name === 'AbortError') return;
-        console.warn('Share sheet failed, falling back to download link', shareError);
       }
     }
 
-    // 4. Fallback: Create anchor and trigger download (Desktop/Android)
+    // 6. Fallback download
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.download = filename;
     link.href = url;
     document.body.appendChild(link);
     link.click();
-    
-    // Cleanup
     document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(url), 100);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (error) {
-    console.error('Failed to save recap photo:', error);
-    throw error;
+    console.error('Final export failure:', error);
+    throw new Error('Image creation failed. Please try a different photo or check your browser permissions.');
   }
 };
