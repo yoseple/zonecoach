@@ -24,8 +24,7 @@ import {
   Volume2,
   Settings2,
   Activity,
-  Trophy,
-  Target
+  Trophy
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import type { Run, RunType } from '../types';
