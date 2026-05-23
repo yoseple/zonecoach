@@ -146,13 +146,15 @@ export const Layout: React.FC = () => {
         </div>
       </main>
 
-      {/* Floating Action Button for Mobile */}
-      <Link 
-        to="/add-run"
-        className="md:hidden fixed right-6 bottom-6 w-14 h-14 bg-blue-600 rounded-full text-white shadow-2xl flex items-center justify-center active:scale-90 transition-transform z-50 shadow-blue-400"
-      >
-        <Plus size={28} />
-      </Link>
+      {/* Floating Action Button for Mobile (Central Play Button) */}
+      <div className="md:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+        <Link 
+          to="/live-run"
+          className="w-16 h-16 bg-blue-600 rounded-full text-white shadow-[0_10px_30px_rgba(59,130,246,0.5)] flex items-center justify-center active:scale-90 transition-all border-4 border-white"
+        >
+          <Play size={32} fill="currentColor" className="ml-1" />
+        </Link>
+      </div>
     </div>
   );
 };
