@@ -40,7 +40,7 @@ interface ExportDimensions {
 
 /**
  * Generates a high-quality PNG recap photo and triggers a device download.
- * Uses fixed dimensions to prevent cropping bugs on mobile.
+ * Uses fixed dimensions and export-safe styles to prevent bugs.
  */
 export const saveRecapToDevice = async (
   element: HTMLElement,
@@ -49,17 +49,24 @@ export const saveRecapToDevice = async (
 ): Promise<void> => {
   if (!element) throw new Error("Preview element not found");
 
+  if (!targetDimensions.width || !targetDimensions.height) {
+    throw new Error("Preview is not ready (zero size).");
+  }
+
   // 1. Wait for images and layout to settle
   await waitForImagesToLoad(element);
-  await new Promise(resolve => requestAnimationFrame(resolve));
+  
+  // Wait two animation frames to ensure browser has painted everything
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   await new Promise(r => setTimeout(r, 400));
 
-  // 2. Capture using fixed dimensions
-  // html-to-image will apply these styles to a CLONE of the element
+  // 2. Apply temporary export-safe styling
+  element.classList.add("recap-exporting");
+  
   try {
     const exportOptions = {
       cacheBust: true,
-      pixelRatio: 1, // Use 1 since we provide large fixed dimensions (1080px+)
+      pixelRatio: 1, // Start with 1 for reliability, provisioned by large target dimensions
       backgroundColor: "#000000",
       width: targetDimensions.width,
       height: targetDimensions.height,
@@ -77,21 +84,23 @@ export const saveRecapToDevice = async (
       },
       filter: (node: Node) => {
         if (!(node instanceof HTMLElement)) return true;
-        // Skip elements marked with data-no-export
         return node.dataset?.noExport !== 'true';
       },
     };
 
-    // 3. Generate PNG
-    const dataUrl = await htmlToImage.toPng(element, exportOptions);
-    
-    if (!dataUrl || dataUrl.length < 1000) {
-      throw new Error("Generated image was invalid. Try a smaller photo.");
-    }
+    // 3. Capture as Blob (Primary)
+    let blob = await htmlToImage.toBlob(element, exportOptions);
 
-    // 4. Convert to Blob for cleaner download
-    const response = await fetch(dataUrl);
-    const blob = await response.blob();
+    // 4. Fallback to PNG DataURL if Blob fails
+    if (!blob || blob.size < 1000) {
+      console.warn("toBlob failed or empty, trying toPng fallback...");
+      const dataUrl = await htmlToImage.toPng(element, exportOptions);
+      if (!dataUrl || dataUrl.length < 1000) {
+        throw new Error("Generated image was invalid. Try a smaller photo or remove filters.");
+      }
+      const response = await fetch(dataUrl);
+      blob = await response.blob();
+    }
 
     if (!blob || blob.size === 0) {
       throw new Error("Generated image file was empty.");
@@ -115,6 +124,8 @@ export const saveRecapToDevice = async (
   } catch (error) {
     console.error('Recap Export Debug Info:', {
       elementExists: !!element,
+      width: element.offsetWidth,
+      height: element.offsetHeight,
       targetDimensions,
       imageCount: element.querySelectorAll('img').length,
       userAgent: navigator.userAgent,
@@ -122,5 +133,7 @@ export const saveRecapToDevice = async (
     });
     
     throw new Error('Couldn’t save recap image. Try changing the filter to None or using a smaller photo.');
+  } finally {
+    element.classList.remove("recap-exporting");
   }
 };

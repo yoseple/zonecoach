@@ -12,7 +12,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Maximize
+  Maximize,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { calculatePace, formatDuration, getFastestSplit } from '../utils/calculations';
@@ -30,9 +30,9 @@ type Filter = 'none' | 'chrome' | 'mono' | 'fade' | 'warm' | 'cool' | 'contrast'
 type PhotoPos = 'center' | 'top' | 'bottom' | 'left' | 'right';
 
 const FORMAT_CONFIG = {
-  '1:1': { width: 1080, height: 1080, label: 'Square' },
-  '9:16': { width: 1080, height: 1920, label: 'Story' },
-  '16:9': { width: 1200, height: 675, label: 'Landscape' }
+  '1:1': { width: 1080, height: 1080, label: 'Square', aspect: '1/1' },
+  '9:16': { width: 1080, height: 1920, label: 'Story', aspect: '9/16' },
+  '16:9': { width: 1200, height: 675, label: 'Landscape', aspect: '16/9' }
 };
 
 export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
@@ -45,6 +45,7 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
   const [isExporting, setIsExporting] = useState(false);
   const [fullscreenPreview, setFullscreenPreview] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   
   const previewRef = useRef<HTMLDivElement>(null);
 
@@ -56,18 +57,27 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
   }, []);
 
   const handleExport = async () => {
-    if (!previewRef.current || !photo) return;
+    if (!photo) {
+      alert("Add a photo before saving.");
+      return;
+    }
+    if (!previewRef.current) return;
+
     setIsExporting(true);
+    setLastError(null);
+    
     try {
       const config = FORMAT_CONFIG[format];
       const filename = `zonecoach-run-${run.date}-${run.distance.toFixed(2)}mi.png`;
+      
       await saveRecapToDevice(previewRef.current, filename, {
         width: config.width,
         height: config.height
       });
     } catch (err: any) {
       console.error('Export failed:', err);
-      alert(err.message || 'Failed to save recap image.');
+      setLastError(err.message || 'Unknown error');
+      alert(err.message || 'Could not save recap. Try using the None filter or a smaller photo.');
     } finally {
       setIsExporting(false);
     }
@@ -80,38 +90,31 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
     const config = FORMAT_CONFIG[format];
     
     return (
+      /* PART 9: Shell pattern to scale preview while keeping export card fixed internally */
       <div 
-        className="recap-preview-wrapper flex items-center justify-center w-full"
-        style={{ perspective: '1000px' }}
+        className="recap-preview-shell w-full flex items-center justify-center p-4"
+        style={{ 
+           aspectRatio: config.aspect,
+           maxHeight: isLarge ? 'none' : '60vh'
+        }}
       >
         <div 
           ref={isLarge ? null : previewRef}
-          data-format={format}
           className={clsx(
-            "relative bg-black overflow-hidden shadow-2xl transition-all duration-500 z-10 select-none",
-            !isLarge && "rounded-[1.5rem]",
-            showDebug && "ring-4 ring-red-500 ring-inset"
+            "recap-export-card relative bg-black overflow-hidden shadow-2xl transition-all duration-500 z-10 select-none",
+            !isLarge && "rounded-[2rem]",
+            showDebug && "ring-8 ring-red-500 ring-inset"
           )}
           style={{
-            width: config.width,
-            height: config.height,
-            // Visually scale down to fit container while maintaining internal pixel size
-            transform: isLarge ? 'none' : `scale(${Math.min(0.8, (window.innerWidth - 64) / config.width)})`,
+            width: `${config.width}px`,
+            height: `${config.height}px`,
+            // PART 2: Scale visuals for display, but capture the internal fixed size
+            transform: isLarge ? 'none' : `scale(${Math.min(0.8, (window.innerWidth - 64) / config.width, (window.innerHeight * 0.5) / config.height)})`,
             transformOrigin: 'center center',
             flexShrink: 0
           }}
         >
-          {/* Debug Info Overlay */}
-          {showDebug && (
-            <div className="absolute top-4 left-4 z-[100] bg-red-600 text-white p-4 font-mono text-xs space-y-1 rounded-lg pointer-events-none">
-              <p>EXPORT BOUNDARY (RED RING)</p>
-              <p>Format: {format}</p>
-              <p>Dimensions: {config.width}x{config.height}</p>
-              <p>Photo Pos: {photoPos}</p>
-            </div>
-          )}
-
-          {/* Background Photo */}
+          {/* Background Photo (PART 2: Real img tag, PART 3: data URL from state) */}
           {photo ? (
             <img 
               src={photo} 
@@ -140,14 +143,13 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
             </div>
           )}
 
-          {/* Template Overlays */}
+          {/* PART 6: Overlays inside card only */}
           {showStats && photo && (
             <div className="absolute inset-0 pointer-events-none z-20">
                
                {/* Template: Strava Classic */}
                {template === 'strava-classic' && (
                  <div className="absolute inset-0 flex flex-col justify-between p-12 text-white">
-                    {/* Top Section */}
                     <div className="flex justify-between items-start">
                        <div className="space-y-1">
                           <h2 className="text-4xl font-black tracking-tight uppercase">Afternoon Run</h2>
@@ -158,10 +160,8 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
                        </div>
                     </div>
 
-                    {/* Bottom Section */}
                     <div className="space-y-10">
                        <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-                       
                        <div className="relative flex justify-between items-end">
                           <div className="space-y-2">
                              <p className="text-8xl font-black italic tracking-tighter leading-none">
@@ -184,7 +184,6 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
                                 )}
                              </div>
                           </div>
-
                           <div className="w-48 h-48 opacity-90 drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">
                              {run.routePoints && <RouteSvgOverlay points={run.routePoints} size={300} />}
                           </div>
@@ -256,7 +255,6 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
 
   return (
     <div className="fixed inset-0 z-[100] bg-[#0F172A] flex flex-col overflow-hidden">
-      {/* Dark Editor Header */}
       <header className="h-16 px-6 flex items-center justify-between shrink-0 border-b border-white/5 bg-slate-900/50 backdrop-blur-xl">
          <button onClick={onClose} className="p-2 text-slate-400 hover:text-white transition-colors">
             <X size={24} strokeWidth={2.5} />
@@ -269,7 +267,7 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
             <button 
               onClick={() => setShowDebug(!showDebug)}
               className={clsx("p-2 rounded-lg transition-colors", showDebug ? "text-red-500 bg-red-500/10" : "text-slate-500")}
-              title="Toggle Export Boundary"
+              title="Toggle Export Debug"
             >
                <Bug size={18} />
             </button>
@@ -284,54 +282,70 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
          </div>
       </header>
 
-      {/* Main Viewport Area */}
-      <div className="flex-1 overflow-y-auto flex flex-col bg-slate-950">
-         {/* Top Scaling Preview */}
-         <div className="p-8 md:p-16 flex items-center justify-center min-h-[50vh] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-from)_0%,_transparent_70%)] from-blue-900/20">
+      <div className="flex-1 overflow-y-auto flex flex-col bg-slate-950 no-scrollbar">
+         {/* Scaling Preview Container */}
+         <div className="flex-1 min-h-[50vh] flex items-center justify-center bg-[radial-gradient(circle_at_center,_#1e293b_0%,_#020617_100%)] relative">
             <RecapPreview />
          </div>
 
-         {/* Bottom Control Panel */}
-         <div className="flex-1 bg-white rounded-t-[3rem] shadow-[0_-20px_60px_rgba(0,0,0,0.4)] p-8 space-y-12 pb-44">
+         {/* Control Panel */}
+         <div className="bg-white rounded-t-[3rem] shadow-[0_-20px_60px_rgba(0,0,0,0.4)] p-8 space-y-12 pb-44">
             
-            {/* 1. Photo Contextual Controls */}
+            {/* PART 10: Debug Panel */}
+            {showDebug && (
+               <section className="p-4 bg-slate-50 rounded-2xl border border-slate-200 font-mono text-[10px] space-y-2">
+                  <h5 className="font-black text-rose-500 uppercase tracking-widest flex items-center space-x-2">
+                    <Bug size={12} />
+                    <span>Export Debugging</span>
+                  </h5>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>Format: {format}</div>
+                    <div>Target: {FORMAT_CONFIG[format].width}x{FORMAT_CONFIG[format].height}</div>
+                    <div>Photo Loaded: {photo ? 'YES' : 'NO'}</div>
+                    <div>Images: {previewRef.current?.querySelectorAll('img').length || 0}</div>
+                    <div>Width: {previewRef.current?.offsetWidth}px</div>
+                    <div>Height: {previewRef.current?.offsetHeight}px</div>
+                    <div>Last Error: {lastError || 'None'}</div>
+                  </div>
+               </section>
+            )}
+
             {!photo ? (
                <section className="space-y-4">
-                  <div className="flex items-center justify-between px-2">
-                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">1. Select Photo</h4>
-                  </div>
+                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">1. Select Photo</h4>
                   <PhotoInput onPhotoSelected={setPhoto} onClear={() => setPhoto(null)} currentPhoto={photo} />
                </section>
             ) : (
                <>
-                  {/* Photo Position Controls */}
-                  <section className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
+                  {/* Photo Position */}
+                  <section className="space-y-4">
                      <div className="flex items-center justify-between px-2">
-                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Photo Position</h4>
-                        <button onClick={() => setPhoto(null)} className="text-[8px] font-black uppercase text-rose-500 tracking-widest">Replace Photo</button>
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Frame Position</h4>
+                        <button onClick={() => setPhoto(null)} className="text-[8px] font-black uppercase text-rose-500 tracking-widest">Replace</button>
                      </div>
-                     <div className="flex gap-4 justify-center">
-                        <button onClick={() => setPhotoPos('top')} className={clsx("p-4 rounded-2xl border-2 transition-all", photoPos === 'top' ? "border-blue-600 bg-blue-50 text-blue-600" : "border-slate-100 text-slate-400")}>
-                           <ChevronUp size={20} />
-                        </button>
-                        <button onClick={() => setPhotoPos('center')} className={clsx("p-4 rounded-2xl border-2 transition-all", photoPos === 'center' ? "border-blue-600 bg-blue-50 text-blue-600" : "border-slate-100 text-slate-400")}>
-                           <Maximize size={20} />
-                        </button>
-                        <button onClick={() => setPhotoPos('bottom')} className={clsx("p-4 rounded-2xl border-2 transition-all", photoPos === 'bottom' ? "border-blue-600 bg-blue-50 text-blue-600" : "border-slate-100 text-slate-400")}>
-                           <ChevronDown size={20} />
-                        </button>
-                        <button onClick={() => setPhotoPos('left')} className={clsx("p-4 rounded-2xl border-2 transition-all", photoPos === 'left' ? "border-blue-600 bg-blue-50 text-blue-600" : "border-slate-100 text-slate-400")}>
-                           <ChevronLeft size={20} />
-                        </button>
-                        <button onClick={() => setPhotoPos('right')} className={clsx("p-4 rounded-2xl border-2 transition-all", photoPos === 'right' ? "border-blue-600 bg-blue-50 text-blue-600" : "border-slate-100 text-slate-400")}>
-                           <ChevronRight size={20} />
-                        </button>
+                     <div className="flex gap-2 justify-center">
+                        {(['top', 'center', 'bottom', 'left', 'right'] as PhotoPos[]).map(pos => (
+                           <button 
+                             key={pos}
+                             onClick={() => setPhotoPos(pos)} 
+                             className={clsx(
+                               "p-4 rounded-xl border-2 transition-all", 
+                               photoPos === pos ? "border-blue-600 bg-blue-50 text-blue-600" : "border-slate-100 text-slate-400"
+                             )}
+                           >
+                              {pos === 'top' && <ChevronUp size={20} />}
+                              {pos === 'center' && <Maximize size={20} />}
+                              {pos === 'bottom' && <ChevronDown size={20} />}
+                              {pos === 'left' && <ChevronLeft size={20} />}
+                              {pos === 'right' && <ChevronRight size={20} />}
+                           </button>
+                        ))}
                      </div>
                   </section>
 
-                  {/* Format Selector */}
+                  {/* Format */}
                   <section className="space-y-4">
-                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">Output Format</h4>
+                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">Output Size</h4>
                      <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-2 px-2">
                         {(['1:1', '9:16', '16:9'] as Format[]).map(f => (
                            <button
@@ -348,9 +362,9 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
                      </div>
                   </section>
 
-                  {/* Template Style */}
+                  {/* Template */}
                   <section className="space-y-4">
-                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">Overlay Style</h4>
+                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">Style Template</h4>
                      <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-2 px-2">
                         {(['strava-classic', 'apple-fitness', 'minimal', 'route-focus'] as Template[]).map(t => (
                            <button
@@ -367,9 +381,9 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
                      </div>
                   </section>
 
-                  {/* Visual Color Filters */}
+                  {/* Filter */}
                   <section className="space-y-4">
-                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">Color Filter</h4>
+                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">Visual Filter</h4>
                      <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-2 px-2">
                         {(['none', 'chrome', 'mono', 'fade', 'warm', 'cool', 'contrast', 'cinematic'] as Filter[]).map(f => (
                            <button key={f} onClick={() => setFilter(f)} className="shrink-0 flex flex-col items-center space-y-2 group">
@@ -394,15 +408,15 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
                      </div>
                   </section>
 
-                  {/* Display Analytics Toggle */}
+                  {/* Stats Toggle */}
                   <section>
                      <button 
                        onClick={() => setShowStats(!showStats)}
-                       className="flex items-center justify-between w-full p-6 bg-slate-50 rounded-[2.5rem] transition-colors hover:bg-slate-100"
+                       className="flex items-center justify-between w-full p-6 bg-slate-50 rounded-[2.5rem] transition-colors"
                      >
                         <div className="flex items-center space-x-3 text-slate-900">
                            <Type size={18} className="text-slate-400" />
-                           <span className="text-[11px] font-black uppercase tracking-widest italic">Display Analytics Overlay</span>
+                           <span className="text-[11px] font-black uppercase tracking-widest italic">Overlay Graphics</span>
                         </div>
                         <div className={clsx(
                           "w-12 h-7 rounded-full transition-colors relative flex items-center p-1",
@@ -417,50 +431,50 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
          </div>
       </div>
 
-      {/* Floating Footer Save Bar */}
-      <footer className="fixed bottom-0 left-0 w-full p-6 bg-white/95 backdrop-blur-2xl border-t border-slate-100 z-[110] pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+      {/* Footer Button Bar */}
+      <footer className="fixed bottom-0 left-0 w-full p-6 bg-white/95 backdrop-blur-2xl border-t border-slate-100 z-[110] pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
          <div className="max-w-md mx-auto space-y-4">
             <button 
               onClick={handleExport}
               disabled={!photo || isExporting}
-              className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-black uppercase tracking-[0.3em] text-xs flex items-center justify-center space-x-3 shadow-2xl disabled:opacity-20 active:scale-95 transition-all group"
+              className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-black uppercase tracking-[0.3em] text-xs flex items-center justify-center space-x-3 shadow-2xl disabled:opacity-20 active:scale-95 transition-all"
             >
                {isExporting ? (
                   <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin" />
                ) : (
                   <>
-                     <Download size={20} className="group-hover:-translate-y-1 transition-transform" strokeWidth={3} />
+                     <Download size={20} strokeWidth={3} />
                      <span>Save to Device</span>
                   </>
                )}
             </button>
             <p className="text-[10px] font-bold text-slate-400 text-center uppercase tracking-widest px-8 leading-relaxed">
-               PNG format • 1080p+ Resolution • Saved to Files/Photos
+               PNG Format • High-Res Output
             </p>
          </div>
       </footer>
 
-      {/* Fullscreen High-Res Preview */}
+      {/* Fullscreen High-Res Modal */}
       {fullscreenPreview && (
         <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in fade-in duration-300">
            <header className="h-16 flex items-center justify-between px-6 shrink-0 bg-black/20 backdrop-blur-md">
               <span className="text-white text-[10px] font-black uppercase tracking-[0.3em]">Full Detail View</span>
-              <button onClick={() => setFullscreenPreview(false)} className="p-2 text-white/50 hover:text-white transition-colors">
+              <button onClick={() => setFullscreenPreview(false)} className="p-2 text-white/50">
                  <X size={28} />
               </button>
            </header>
-           <div className="flex-1 p-8 flex items-center justify-center overflow-auto bg-[radial-gradient(circle_at_center,_#1e293b_0%,_#020617_100%)]">
+           <div className="flex-1 p-8 flex items-center justify-center overflow-auto bg-slate-900">
               <div className="min-w-fit min-h-fit shadow-[0_0_100px_rgba(0,0,0,0.5)]">
                  <RecapPreview isLarge />
               </div>
            </div>
-           <footer className="p-8 shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))] bg-black/40 backdrop-blur-xl">
+           <footer className="p-8 shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))] bg-black/40">
               <button 
                 onClick={handleExport} 
                 disabled={isExporting}
                 className="w-full py-6 bg-blue-600 text-white rounded-[2.5rem] font-black uppercase tracking-[0.2em] text-xs shadow-2xl active:scale-95 transition-all flex items-center justify-center space-x-3"
               >
-                 {isExporting ? <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin" /> : <span>Confirm & Save High-Res</span>}
+                 {isExporting ? <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin" /> : <span>Confirm & Save PNG</span>}
               </button>
            </footer>
         </div>
