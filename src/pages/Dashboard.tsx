@@ -12,12 +12,14 @@ import {
   Target,
   Trophy
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { AreaChart, Area, ResponsiveContainer } from 'recharts';
 import { clsx } from 'clsx';
+import { TodayWorkoutCard } from '../components/TodayWorkoutCard';
 
 export const Dashboard: React.FC = () => {
-  const { runs, userProfile, plans, activePlanId } = useRunStore();
+  const navigate = useNavigate();
+  const { runs, userProfile, plans, activePlanId, setActiveWorkout } = useRunStore();
 
   const totalDistance = runs.reduce((acc, run) => acc + run.distance, 0);
   const totalRuns = runs.length;
@@ -27,6 +29,12 @@ export const Dashboard: React.FC = () => {
     
   const recentRuns = runs.slice(0, 3);
   const activePlan = plans.find(p => p.id === activePlanId);
+  const todayWorkout = activePlan?.workouts.find(w => w.day === new Date().toLocaleDateString('en-US', { weekday: 'long' }) && w.status === 'pending');
+
+  const handleStartWorkout = (id: string) => {
+    setActiveWorkout(id);
+    navigate('/live-run');
+  };
 
   // Sparkline data for cards
   const sparkData = runs.slice(0, 7).reverse().map(r => ({ val: r.distance }));
@@ -64,60 +72,48 @@ export const Dashboard: React.FC = () => {
             <Target size={20} className="text-blue-600" />
             <span>Mission Objective</span>
           </h3>
-          <div className="bg-slate-900 p-8 md:p-10 rounded-[3rem] text-white shadow-2xl shadow-blue-200 relative overflow-hidden group min-h-[340px] flex flex-col">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600 rounded-full -mr-32 -mt-32 blur-[100px] opacity-30 group-hover:opacity-50 transition-opacity duration-700" />
-            
-            {activePlan ? (
-              <div className="relative z-10 flex-1 flex flex-col">
-                <div className="flex justify-between items-start mb-8">
-                   <div>
-                      <p className="text-blue-400 text-[10px] font-black uppercase tracking-[0.3em] mb-2">Primary Regime</p>
-                      <h4 className="text-4xl font-black italic tracking-tighter leading-tight">{activePlan.title}</h4>
-                   </div>
-                   <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/10">
-                      <Trophy size={24} className="text-blue-400" />
-                   </div>
-                </div>
-                
-                <div className="space-y-8 mt-auto">
-                  <div className="space-y-3">
-                    <div className="flex justify-between text-[10px] font-black uppercase tracking-widest">
-                      <span className="text-slate-400">Operational Progress</span>
-                      <span className="text-white">12% Completed</span>
+          {todayWorkout ? (
+            <TodayWorkoutCard workout={todayWorkout} onStart={handleStartWorkout} />
+          ) : (
+            <div className="bg-slate-900 p-8 md:p-10 rounded-[3rem] text-white shadow-2xl shadow-blue-200 relative overflow-hidden group min-h-[340px] flex flex-col">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-blue-600 rounded-full -mr-32 -mt-32 blur-[100px] opacity-30 group-hover:opacity-50 transition-opacity duration-700" />
+              
+              {activePlan ? (
+                <div className="relative z-10 flex-1 flex flex-col">
+                  <div className="flex justify-between items-start mb-8">
+                    <div>
+                        <p className="text-blue-400 text-[10px] font-black uppercase tracking-[0.3em] mb-2">Primary Regime</p>
+                        <h4 className="text-4xl font-black italic tracking-tighter leading-tight">{activePlan.title}</h4>
                     </div>
-                    <div className="w-full bg-slate-800 h-4 rounded-full overflow-hidden p-1 border border-white/5">
-                      <div className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full w-[12%] shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
+                    <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/10">
+                        <Trophy size={24} className="text-blue-400" />
                     </div>
                   </div>
                   
-                  <div className="pt-8 border-t border-white/10 flex items-center justify-between">
-                    <div>
-                      <p className="text-slate-500 text-[9px] font-black uppercase tracking-[0.2em] mb-1 text-nowrap">Next Assignment</p>
-                      <p className="font-black italic text-lg leading-none">Zone 2 Base Session</p>
-                      <p className="text-xs text-slate-500 font-bold mt-2">2.0 miles @ Low Intensity</p>
-                    </div>
-                    <Link to="/training" className="px-6 py-3 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center space-x-2 hover:bg-blue-500 hover:text-white transition-all shadow-xl active:scale-95">
-                      <span>Full Schedule</span>
+                  <div className="space-y-8 mt-auto">
+                    <p className="text-slate-400 font-bold text-sm italic">"Mission for today accomplished or resting. Prepare for the next cycle."</p>
+                    <Link to="/training" className="px-6 py-3 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center space-x-2 hover:bg-blue-500 hover:text-white transition-all shadow-xl active:scale-95 self-start">
+                      <span>View Roadmap</span>
                       <ArrowUpRight size={14} strokeWidth={3} />
                     </Link>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center space-y-6">
-                 <div className="w-20 h-20 bg-white/5 rounded-[2rem] flex items-center justify-center text-slate-600 border border-white/5">
-                    <Target size={40} strokeWidth={1} />
-                 </div>
-                 <div className="space-y-2">
-                    <h4 className="text-2xl font-black italic tracking-tight">No Active Program</h4>
-                    <p className="text-slate-400 text-sm font-bold max-w-xs mx-auto italic">"Without strategy, execution is aimless."</p>
-                 </div>
-                 <Link to="/training" className="bg-white text-slate-900 px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-105 transition-transform shadow-xl shadow-white/5">
-                    Browse Plans
-                 </Link>
-              </div>
-            )}
-          </div>
+              ) : (
+                <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center space-y-6">
+                   <div className="w-20 h-20 bg-white/5 rounded-[2rem] flex items-center justify-center text-slate-600 border border-white/5">
+                      <Target size={40} strokeWidth={1} />
+                   </div>
+                   <div className="space-y-2">
+                      <h4 className="text-2xl font-black italic tracking-tight">No Active Program</h4>
+                      <p className="text-slate-400 text-sm font-bold max-w-xs mx-auto italic">"Without strategy, execution is aimless."</p>
+                   </div>
+                   <Link to="/training" className="bg-white text-slate-900 px-10 py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:scale-105 transition-transform shadow-xl shadow-white/5">
+                      Browse Plans
+                   </Link>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="lg:col-span-5">

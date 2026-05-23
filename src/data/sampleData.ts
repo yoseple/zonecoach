@@ -72,9 +72,9 @@ export const samplePlans: TrainingPlan[] = [
     runsPerWeek: 3,
     difficulty: 'Beginner',
     workouts: [
-      { id: 'w1', week: 1, day: 'Monday', type: 'Recovery Run', targetDistance: 1.5, notes: 'Easy pace.', status: 'completed' },
-      { id: 'w2', week: 1, day: 'Wednesday', type: 'Zone 2 Run', targetDistance: 2.0, notes: 'Stay in Zone 2.', status: 'pending' },
-      { id: 'w3', week: 1, day: 'Saturday', type: 'Long Run', targetDistance: 3.0, notes: 'Consistency is key.', status: 'pending' },
+      { id: 'w1', planId: 'plan-5k-beginner', week: 1, day: 'Monday', type: 'Recovery Run', targetDistance: 1.5, notes: 'Easy pace.', status: 'completed' },
+      { id: 'w2', planId: 'plan-5k-beginner', week: 1, day: 'Wednesday', type: 'Zone 2 Run', targetDistance: 2.0, notes: 'Stay in Zone 2.', status: 'pending' },
+      { id: 'w3', planId: 'plan-5k-beginner', week: 1, day: 'Saturday', type: 'Long Run', targetDistance: 3.0, notes: 'Consistency is key.', status: 'pending' },
     ],
   },
 ];

@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useRunStore } from '../store/useRunStore';
 import { 
-  CheckCircle2, 
-  XCircle, 
-  MapPin, 
   Activity, 
   Trophy, 
   Zap, 
   ArrowRight,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Clock
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { generatePlan } from '../utils/planEngine';
 import type { PlanGoal } from '../utils/planEngine';
+import { WorkoutCard } from '../components/WorkoutCard';
 
 const GOAL_OPTIONS: { value: PlanGoal; label: string; icon: any; color: string }[] = [
   { value: 'beginner-5k', label: 'Beginner 5K', icon: Trophy, color: 'text-emerald-500' },
@@ -25,7 +25,8 @@ const GOAL_OPTIONS: { value: PlanGoal; label: string; icon: any; color: string }
 ];
 
 export const TrainingPlans: React.FC = () => {
-  const { plans, activePlanId, updateWorkoutStatus, setActivePlan, selectPlan } = useRunStore();
+  const navigate = useNavigate();
+  const { plans, activePlanId, updateWorkoutStatus, setActivePlan, selectPlan, setActiveWorkout } = useRunStore();
   const [currentWeek, setCurrentWeek] = useState(1);
   
   const activePlan = plans.find(p => p.id === activePlanId);
@@ -36,6 +37,13 @@ export const TrainingPlans: React.FC = () => {
     selectPlan(newPlan);
     setCurrentWeek(1);
   };
+
+  const handleStartWorkout = (id: string) => {
+    setActiveWorkout(id);
+    navigate('/live-run');
+  };
+
+  const handleViewRun = (runId: string) => navigate(`/run/${runId}`);
 
   const calculateProgress = () => {
     if (!activePlan) return 0;
@@ -115,65 +123,14 @@ export const TrainingPlans: React.FC = () => {
             <div className="p-8 md:p-12 relative z-10">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {weekWorkouts.map((workout) => (
-                  <div 
+                  <WorkoutCard 
                     key={workout.id}
-                    className={clsx(
-                      "p-8 rounded-[2.5rem] border-2 transition-all duration-300 relative group",
-                      workout.status === 'completed' ? "bg-emerald-500/5 border-emerald-500/20" : "bg-white/5 border-white/5 hover:border-blue-500/30"
-                    )}
-                  >
-                    <div className="flex items-center justify-between mb-6">
-                      <span className={clsx(
-                        "text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full",
-                        workout.status === 'completed' ? "bg-emerald-500 text-white" : "bg-white/10 text-slate-400"
-                      )}>
-                        {workout.day}
-                      </span>
-                      {workout.status === 'completed' ? (
-                        <CheckCircle2 size={24} className="text-emerald-500" />
-                      ) : (
-                        <div className="w-6 h-6 rounded-full border-2 border-white/10 group-hover:border-blue-500/50 transition-colors" />
-                      )}
-                    </div>
-                    
-                    <h5 className={clsx("text-xl font-black italic mb-2 tracking-tight", workout.status === 'completed' ? "text-slate-300 line-through opacity-50" : "text-white")}>
-                       {workout.type}
-                    </h5>
-                    
-                    <div className="flex items-center space-x-4 text-[10px] font-black uppercase tracking-[0.1em] text-slate-500 mb-8">
-                      {workout.targetDistance && (
-                        <div className="flex items-center space-x-1.5">
-                          <MapPin size={12} className="text-blue-500" />
-                          <span>{workout.targetDistance} mi</span>
-                        </div>
-                      )}
-                      {workout.targetZone && (
-                        <div className="flex items-center space-x-1.5">
-                          <Activity size={12} className="text-emerald-500" />
-                          <span>Zone {workout.targetZone}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex gap-3">
-                      {workout.status !== 'completed' && (
-                        <button 
-                          onClick={() => updateWorkoutStatus(activePlan.id, workout.id, 'completed')}
-                          className="flex-1 bg-white text-slate-900 text-[10px] font-black uppercase py-4 rounded-2xl hover:bg-blue-500 hover:text-white transition-all shadow-lg active:scale-95"
-                        >
-                          Mark Done
-                        </button>
-                      )}
-                      {workout.status === 'pending' && (
-                        <button 
-                          onClick={() => updateWorkoutStatus(activePlan.id, workout.id, 'skipped')}
-                          className="w-12 bg-white/5 text-slate-500 rounded-2xl flex items-center justify-center hover:bg-rose-500/20 hover:text-rose-400 transition-all"
-                        >
-                          <XCircle size={18} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                    workout={workout}
+                    onStart={handleStartWorkout}
+                    onViewRun={handleViewRun}
+                    onSkip={(id) => updateWorkoutStatus(activePlan.id, id, 'skipped')}
+                    isToday={new Date().toLocaleDateString('en-US', { weekday: 'long' }) === workout.day}
+                  />
                 ))}
               </div>
             </div>

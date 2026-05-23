@@ -153,8 +153,17 @@ export const RunDetails: React.FC = () => {
                        <span>{run.source}</span>
                     </div>
                  )}
+                 {run.trainingPlanId && (
+                    <div className="flex items-center space-x-1 px-2 py-0.5 bg-blue-100 rounded text-[8px] font-black uppercase tracking-tighter text-blue-600">
+                       <Zap size={10} fill="currentColor" />
+                       <span>Guided Workout</span>
+                    </div>
+                 )}
               </div>
               <h2 className="text-5xl font-black text-slate-900 tracking-tighter leading-[0.9]">{run.title}</h2>
+              {run.plannedWorkoutName && (
+                 <p className="text-sm font-bold text-slate-400 italic">Completed as part of your {run.plannedWorkoutName} goal</p>
+              )}
             </div>
             <div className="text-left md:text-right space-y-1">
               <p className="text-7xl font-black text-blue-600 tracking-tighter leading-none italic">{run.distance.toFixed(2)}</p>

@@ -7,6 +7,7 @@ interface RunState {
   runs: Run[];
   userProfile: UserProfile;
   activePlanId: string | null;
+  activeWorkoutId: string | null;
   plans: TrainingPlan[];
   
   // Actions
@@ -14,8 +15,9 @@ interface RunState {
   deleteRun: (id: string) => void;
   updateUserProfile: (profile: Partial<UserProfile>) => void;
   setActivePlan: (id: string | null) => void;
+  setActiveWorkout: (id: string | null) => void;
   selectPlan: (plan: TrainingPlan) => void;
-  updateWorkoutStatus: (planId: string, workoutId: string, status: 'completed' | 'skipped' | 'rescheduled' | 'pending') => void;
+  updateWorkoutStatus: (planId: string, workoutId: string, status: 'completed' | 'skipped' | 'rescheduled' | 'pending', runId?: string) => void;
   resetToSampleData: () => void;
 }
 
@@ -33,6 +35,7 @@ export const useRunStore = create<RunState>()(
         }
       },
       activePlanId: 'plan-5k-beginner',
+      activeWorkoutId: null,
       plans: samplePlans,
 
       addRun: (run) => set((state) => ({ 
@@ -49,25 +52,27 @@ export const useRunStore = create<RunState>()(
       
       setActivePlan: (id) => set({ activePlanId: id }),
       
+      setActiveWorkout: (id) => set({ activeWorkoutId: id }),
+      
       selectPlan: (plan) => set((state) => ({
         plans: state.plans.some(p => p.id === plan.id) ? state.plans : [...state.plans, plan],
         activePlanId: plan.id
       })),
       
-      updateWorkoutStatus: (planId, workoutId, status) => set((state) => ({
+      updateWorkoutStatus: (planId, workoutId, status, runId) => set((state) => ({
         plans: state.plans.map((p) => {
           if (p.id !== planId) return p;
           return {
             ...p,
             workouts: p.workouts.map((w) => {
               if (w.id !== workoutId) return w;
-              return { ...w, status };
+              return { ...w, status, completedRunId: runId };
             })
           };
         })
       })),
 
-      resetToSampleData: () => set({ runs: sampleRuns, plans: samplePlans, activePlanId: 'plan-5k-beginner' }),
+      resetToSampleData: () => set({ runs: sampleRuns, plans: samplePlans, activePlanId: 'plan-5k-beginner', activeWorkoutId: null }),
     }),
     {
       name: 'zonecoach-storage',

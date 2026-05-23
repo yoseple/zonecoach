@@ -5,7 +5,11 @@ export type RunType =
   | 'Tempo Run' 
   | 'Interval Run' 
   | 'Long Run' 
-  | 'Race Pace';
+  | 'Race Pace'
+  | 'Recovery Run'
+  | 'Easy Zone 2 Run'
+  | 'Hill Repeats'
+  | 'Strides';
 
 export interface Split {
   mile: number;
@@ -17,6 +21,7 @@ export interface RoutePoint {
   lat: number;
   lng: number;
   time?: string;
+  accuracy?: number;
 }
 
 export interface Run {
@@ -41,6 +46,14 @@ export interface Run {
     acceptedPoints: number;
     rejectedPoints: number;
   };
+  // Training Metadata
+  trainingWorkoutId?: string;
+  trainingPlanId?: string;
+  plannedWorkoutName?: string;
+  plannedDistanceMiles?: number;
+  plannedTargetZone?: number;
+  completedTrainingTarget?: boolean;
+  completionPercent?: number;
 }
 
 export interface ZoneSettings {
@@ -64,12 +77,15 @@ export interface UserProfile {
 
 export interface Workout {
   id: string;
+  planId: string;
   week: number;
   day: string; // 'Monday', etc.
-  type: RunType | 'Rest Day' | 'Strength Day' | 'Recovery Run' | 'Easy Zone 2 Run' | 'Mobility Day';
+  type: RunType | 'Rest Day' | 'Strength Day' | 'Mobility Day';
   targetDistance?: number;
   targetDuration?: number;
   targetZone?: number;
+  targetPaceMin?: string;
+  targetPaceMax?: string;
   notes: string;
   status: 'pending' | 'completed' | 'skipped' | 'rescheduled';
   completedRunId?: string; // Link to the actual run
@@ -83,6 +99,7 @@ export interface TrainingPlan {
   runsPerWeek: number;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
   workouts: Workout[];
+  startedAt?: string;
 }
 
 export interface PersonalRecord {
