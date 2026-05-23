@@ -15,15 +15,14 @@ import {
   ChevronUp, 
   Map as MapIcon, 
   TrendingUp,
-  Zap,
-  Target,
   Terminal,
   Play,
   Pause,
   Square,
   Volume2,
   Settings2,
-  Activity as ActivityIcon
+  Activity as ActivityIcon,
+  Trophy
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import type { Run, RunType } from '../types';
@@ -58,6 +57,13 @@ export const LiveRun: React.FC = () => {
   const { requestWakeLock, releaseWakeLock } = useWakeLock();
 
   const lastSplitCount = useRef(0);
+
+  // Calculate fastest mile
+  const fastestMile = React.useMemo(() => {
+    if (tracker.splits.length === 0) return '--:--';
+    const sorted = [...tracker.splits].sort((a, b) => a.time - b.time);
+    return sorted[0].pace;
+  }, [tracker.splits]);
 
   // Sync Timer and Tracker with Status
   useEffect(() => {
@@ -100,8 +106,6 @@ export const LiveRun: React.FC = () => {
     setIsSaving(true);
 
     const runId = uuidv4();
-    
-    // Calculate accuracy stats
     const accuracies = tracker.acceptedPoints.map(p => p.accuracy);
     const avgAccuracy = accuracies.length > 0 ? accuracies.reduce((a, b) => a + b, 0) / accuracies.length : 0;
     const bestAccuracy = accuracies.length > 0 ? Math.min(...accuracies) : 0;
@@ -131,8 +135,6 @@ export const LiveRun: React.FC = () => {
     };
 
     addRun(newRun);
-    
-    // Auto-link to workout
     if (activePlan) {
         const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
         const workout = activePlan.workouts.find(w => w.day === today && w.status === 'pending');
@@ -140,7 +142,6 @@ export const LiveRun: React.FC = () => {
             useRunStore.getState().updateWorkoutStatus(activePlan.id, workout.id, 'completed');
         }
     }
-
     navigate(`/run/${runId}`);
   };
 
@@ -235,83 +236,73 @@ export const LiveRun: React.FC = () => {
     );
   }
 
-  // STEP 2 & 3: ACTIVE / PAUSED
   return (
-    <div className="fixed inset-0 bg-white z-40 flex flex-col font-sans overflow-hidden">
-      {/* Finish Modal */}
+    <div className="fixed inset-0 bg-white z-40 flex flex-col font-sans overflow-hidden select-none">
       <FinishRunModal 
         isOpen={status === 'finishing'}
         distance={tracker.totalDistance}
         time={timer.elapsedSeconds}
         pace={averagePace}
         onLog={handleLog}
-        onContinue={() => setStatus('paused')}
+        onContinue={() => setStatus(timer.isRunning ? 'running' : 'paused')}
         onDiscard={handleDiscard}
       />
 
-      <header className="h-16 flex items-center justify-between px-6 bg-white border-b border-slate-50 shrink-0">
+      <header className="h-14 flex items-center justify-between px-6 bg-white border-b border-slate-50 shrink-0">
         <div className="flex items-center space-x-3">
-          <div className={clsx("w-2 h-2 rounded-full animate-pulse", status === 'running' ? "bg-emerald-500" : "bg-amber-500")} />
-          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-            {status === 'running' ? 'Live Tracking' : 'Paused Session'}
+          <div className={clsx("w-2 h-2 rounded-full", status === 'running' ? "bg-emerald-500 animate-pulse" : "bg-amber-500")} />
+          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
+            {status === 'running' ? 'Tracking' : 'Paused'}
           </span>
         </div>
         <div className="flex items-center space-x-4">
-           <button 
-             onClick={() => setShowDebug(!showDebug)}
-             className={clsx("p-2 rounded-lg transition-colors", showDebug ? "text-emerald-500 bg-slate-900" : "text-slate-300")}
-           >
-              <Terminal size={18} />
-           </button>
+           <button onClick={() => setShowDebug(!showDebug)} className={clsx("p-2 rounded-lg transition-colors", showDebug ? "text-emerald-500 bg-slate-900" : "text-slate-200")}><Terminal size={14} /></button>
            <GpsAccuracyBadge accuracy={tracker.accuracy} />
         </div>
       </header>
 
       {/* Main Metrics Area */}
       <div className={clsx(
-        "flex-1 flex flex-col p-6 transition-all duration-500 overflow-y-auto",
-        mapExpanded ? "opacity-0 scale-95 pointer-events-none absolute" : "opacity-100 scale-100 relative"
+        "flex-1 flex flex-col px-6 transition-all duration-500",
+        mapExpanded ? "opacity-0 scale-95 pointer-events-none absolute inset-0" : "opacity-100 scale-100 relative"
       )}>
-        <div className="flex-1 flex flex-col justify-center space-y-12 sm:space-y-16">
-          <div className="text-center space-y-2">
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Distance (mi)</p>
-            <span className="text-8xl sm:text-9xl font-black italic tracking-tighter leading-none text-slate-900 tabular-nums">
-              {tracker.totalDistance.toFixed(2)}
-            </span>
+        <div className="flex-1 flex flex-col justify-center space-y-16 py-8">
+          <div className="text-center space-y-1">
+            <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300">Distance</p>
+            <div className="flex items-baseline justify-center">
+              <span className="text-9xl font-black italic tracking-tighter leading-none text-slate-900 tabular-nums">
+                {tracker.totalDistance.toFixed(2)}
+              </span>
+              <span className="text-2xl font-black italic text-slate-300 ml-2 uppercase tracking-tighter">mi</span>
+            </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-8">
+          <div className="grid grid-cols-2 gap-12">
             <div className="text-center space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Duration</p>
-              <p className="text-4xl sm:text-5xl font-black italic tracking-tighter tabular-nums text-slate-900">
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300">Timer</p>
+              <p className="text-6xl font-black italic tracking-tighter tabular-nums text-slate-900 leading-none">
                 {formatDuration(timer.elapsedSeconds)}
               </p>
             </div>
             <div className="text-center space-y-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Current Pace</p>
-              <p className="text-4xl sm:text-5xl font-black italic tracking-tighter text-blue-600 tabular-nums">
+              <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300">Pace</p>
+              <p className="text-6xl font-black italic tracking-tighter text-blue-600 tabular-nums leading-none">
                 {currentPace}
               </p>
             </div>
           </div>
         </div>
 
-        {/* Sub-metrics Grid */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-10 border-t border-slate-50 mb-32 shrink-0">
-          <div className="bg-slate-50 p-4 rounded-3xl text-center space-y-1">
-             <TrendingUp size={16} className="mx-auto text-slate-300" />
-             <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Avg Pace</p>
-             <p className="text-xs font-black italic text-slate-900">{averagePace}</p>
+        <div className="grid grid-cols-2 gap-4 pb-36 border-t border-slate-50 pt-8 shrink-0">
+          <div className="bg-slate-50 p-6 rounded-[2rem] flex flex-col items-center justify-center space-y-1">
+             <TrendingUp size={18} className="text-slate-300" />
+             <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Average Pace</p>
+             <p className="text-xl font-black italic text-slate-900">{averagePace}</p>
           </div>
-          <div className="bg-slate-50 p-4 rounded-3xl text-center space-y-1">
-             <Target size={16} className="mx-auto text-slate-300" />
-             <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Cur. Split</p>
-             <p className="text-xs font-black italic text-slate-900">{tracker.splits[tracker.splits.length - 1]?.pace || '--:--'}</p>
-          </div>
-          <div className="bg-slate-50 p-4 rounded-3xl text-center space-y-1">
-             <Zap size={16} className="mx-auto text-slate-300" />
-             <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Kcal</p>
-             <p className="text-xs font-black italic text-slate-900">{Math.round(tracker.totalDistance * 100)}</p>
+          <div className="bg-slate-50 p-6 rounded-[2rem] flex flex-col items-center justify-center space-y-1">
+             <Trophy size={18} className="text-slate-300" />
+             <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Fastest Mile</p>
+             <p className="text-xl font-black italic text-slate-900">{fastestMile}</p>
           </div>
         </div>
       </div>
@@ -319,63 +310,41 @@ export const LiveRun: React.FC = () => {
       {/* Map Drawer */}
       <div className={clsx(
         "absolute bottom-0 left-0 w-full bg-slate-900 transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] z-40",
-        mapExpanded ? "h-[calc(100vh-64px)]" : "h-20"
+        mapExpanded ? "h-[calc(100vh-56px)]" : "h-16"
       )}>
-        <button 
-          onClick={() => setMapExpanded(!mapExpanded)}
-          className="absolute top-0 left-0 w-full h-8 flex items-center justify-center text-white/40 hover:text-white transition-colors z-[1001]"
-        >
-          {mapExpanded ? <ChevronDown size={24} /> : <ChevronUp size={24} />}
+        <button onClick={() => setMapExpanded(!mapExpanded)} className="absolute top-0 left-0 w-full h-12 flex items-center justify-center text-white/20 hover:text-white transition-colors z-[1001]">
+          {mapExpanded ? <ChevronDown size={28} /> : <ChevronUp size={28} />}
         </button>
         <div className="h-full w-full">
            <LiveRunMap points={tracker.acceptedPoints} currentPoint={tracker.acceptedPoints[tracker.acceptedPoints.length - 1] || null} />
         </div>
       </div>
 
-      {/* Controls Overlay */}
+      {/* Sticky Controls */}
       <div className={clsx(
-        "fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-md px-6 z-50 transition-all duration-500",
-        mapExpanded ? "translate-y-32 scale-90 opacity-0" : "translate-y-0 scale-100 opacity-100"
+        "fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-sm px-8 z-50 transition-all duration-500",
+        mapExpanded ? "translate-y-32 opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
       )}>
-        <div className={clsx(
-          "p-4 rounded-[3.5rem] shadow-2xl border transition-all duration-300 flex items-center justify-center space-x-6",
-          status === 'running' ? "bg-white/90 backdrop-blur-xl border-white/50" : "bg-slate-900 border-slate-800"
-        )}>
-           {status === 'running' ? (
-             <>
-               <button 
-                 onClick={handlePause}
-                 className="w-20 h-20 bg-slate-900 text-white rounded-full flex items-center justify-center shadow-xl active:scale-90 transition-transform"
-               >
-                 <Pause size={32} fill="currentColor" />
-               </button>
-               <button 
-                 onClick={handleEndClick}
-                 className="w-14 h-14 bg-slate-100 text-slate-400 rounded-full flex items-center justify-center active:scale-90 transition-transform"
-               >
-                 <Square size={20} fill="currentColor" />
-               </button>
-             </>
-           ) : (
-             <>
-               <button 
-                 onClick={handleResume}
-                 className="w-20 h-20 bg-blue-600 text-white rounded-full flex items-center justify-center shadow-xl active:scale-90 transition-transform"
-               >
-                 <Play size={32} fill="currentColor" className="ml-1" />
-               </button>
-               <button 
-                 onClick={handleEndClick}
-                 className="w-14 h-14 bg-white/10 text-white rounded-full flex items-center justify-center active:scale-90 transition-transform"
-               >
-                 <Square size={20} fill="currentColor" />
-               </button>
-             </>
-           )}
+        <div className="flex items-center justify-between gap-6">
+           <button onClick={handleEndClick} className="w-16 h-16 bg-slate-50 text-slate-400 rounded-full flex items-center justify-center shadow-lg border border-slate-100 active:scale-90 transition-transform">
+              <Square size={24} fill="currentColor" />
+           </button>
+           <button 
+             onClick={status === 'running' ? handlePause : handleResume}
+             className={clsx(
+               "flex-1 h-24 rounded-full flex items-center justify-center shadow-[0_20px_50px_rgba(0,0,0,0.2)] active:scale-95 transition-all space-x-3",
+               status === 'running' ? "bg-slate-900 text-white" : "bg-blue-600 text-white"
+             )}
+           >
+              {status === 'running' ? (
+                <><Pause size={32} fill="currentColor" /><span className="font-black uppercase tracking-[0.2em] text-xs">Pause</span></>
+              ) : (
+                <><Play size={32} fill="currentColor" className="ml-1" /><span className="font-black uppercase tracking-[0.2em] text-xs">Resume</span></>
+              )}
+           </button>
         </div>
       </div>
 
-      {/* Debug Feed */}
       {showDebug && (
         <div className="absolute top-20 right-6 z-[2000] w-64 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl text-[10px] font-mono space-y-3 animate-in fade-in slide-in-from-top-2">
            <p className="text-emerald-400 font-black uppercase">Telemetry Feed</p>
