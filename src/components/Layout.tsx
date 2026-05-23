@@ -32,6 +32,8 @@ export const Layout: React.FC = () => {
   const location = useLocation();
   const { userProfile } = useRunStore();
 
+  const isLiveRunPage = location.pathname === '/live-run';
+
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden font-sans selection:bg-blue-100 selection:text-blue-900">
       {/* Mobile Sidebar Overlay */}
@@ -108,7 +110,7 @@ export const Layout: React.FC = () => {
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Top Header (Floating Style) */}
-        <header className="sticky top-0 z-40 h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-6 flex items-center justify-between">
+        <header className="sticky top-0 z-40 h-16 bg-white/80 backdrop-blur-md border-b border-slate-200/60 px-6 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-4">
             <button 
               onClick={() => setIsSidebarOpen(true)}
@@ -116,9 +118,10 @@ export const Layout: React.FC = () => {
             >
               <Menu size={24} />
             </button>
-            <div className="hidden md:block">
-               {/* Breadcrumbs or page title could go here */}
-            </div>
+            <Link to="/" className="flex items-center space-x-2 px-3 py-1 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors group">
+              <Home size={16} className="text-slate-400 group-hover:text-blue-600" />
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Home</span>
+            </Link>
           </div>
 
           <div className="flex items-center space-x-3">
@@ -147,15 +150,17 @@ export const Layout: React.FC = () => {
         </div>
       </main>
 
-      {/* Floating Action Button for Mobile (Central Play Button) */}
-      <div className="md:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-        <Link 
-          to="/live-run"
-          className="w-16 h-16 bg-blue-600 rounded-full text-white shadow-[0_10px_30px_rgba(59,130,246,0.5)] flex items-center justify-center active:scale-90 transition-all border-4 border-white"
-        >
-          <Play size={32} fill="currentColor" className="ml-1" />
-        </Link>
-      </div>
+      {/* Floating Action Button for Mobile (Central Play Button) - Hidden on Live Run Page */}
+      {!isLiveRunPage && (
+        <div className="md:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <Link 
+            to="/live-run"
+            className="w-16 h-16 bg-blue-600 rounded-full text-white shadow-[0_10px_30px_rgba(59,130,246,0.5)] flex items-center justify-center active:scale-90 transition-all border-4 border-white"
+          >
+            <Play size={32} fill="currentColor" className="ml-1" />
+          </Link>
+        </div>
+      )}
     </div>
   );
 };
