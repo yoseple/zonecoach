@@ -107,8 +107,8 @@ export const AddRun: React.FC = () => {
   return (
     <div className="max-w-5xl mx-auto pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <header className="mb-12">
-        <h2 className="text-4xl font-black text-slate-900 tracking-tight mb-2">New Activity</h2>
-        <p className="text-slate-500 font-bold text-lg">Log your latest session and track your progress.</p>
+        <h2 className="text-4xl font-black text-slate-900 tracking-tight mb-2">Manual Activity</h2>
+        <p className="text-slate-500 font-bold text-lg">Log a past run or workout details manually.</p>
       </header>
       
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-10">

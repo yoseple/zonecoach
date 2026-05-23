@@ -21,10 +21,10 @@ export const RunHistory: React.FC = () => {
           <p className="text-slate-500 font-bold text-lg">Every run, every mile, all in one place.</p>
         </div>
         <Link 
-          to="/add-run"
+          to="/live-run"
           className="inline-flex items-center justify-center px-8 py-4 bg-slate-900 text-white font-black rounded-full hover:bg-blue-600 transition-all shadow-xl shadow-slate-200 active:scale-95"
         >
-          Add New Run
+          Start Live Tracker
         </Link>
       </header>
 

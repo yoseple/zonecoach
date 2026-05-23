@@ -18,6 +18,7 @@ import { useRunStore } from '../store/useRunStore';
 const navItems = [
   { path: '/', label: 'Overview', icon: Home },
   { path: '/live-run', label: 'Live Tracker', icon: Smartphone },
+  { path: '/add-run', label: 'Add Manual Run', icon: Plus },
   { path: '/history', label: 'Activities', icon: History },
   { path: '/records', label: 'PRs & Best Hooks', icon: Trophy },
   { path: '/training', label: 'Training Plans', icon: Calendar },
@@ -125,7 +126,7 @@ export const Layout: React.FC = () => {
               className="flex items-center space-x-2 bg-slate-900 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg shadow-slate-200 hover:bg-slate-800 hover:-translate-y-0.5 transition-all active:scale-95"
             >
               <Plus size={18} />
-              <span>Log Activity</span>
+              <span>Manual Log</span>
             </Link>
             <Link 
               to="/future"
