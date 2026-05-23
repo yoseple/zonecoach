@@ -6,10 +6,16 @@ import {
   Download, 
   Type, 
   Image as ImageIcon,
-  Maximize2
+  Maximize2,
+  Bug,
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Maximize
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { calculatePace, formatDuration } from '../utils/calculations';
+import { calculatePace, formatDuration, getFastestSplit } from '../utils/calculations';
 import { RouteSvgOverlay } from './RouteSvgOverlay';
 import { saveRecapToDevice } from '../utils/imageExport';
 
@@ -19,20 +25,29 @@ interface Props {
 }
 
 type Format = '1:1' | '9:16' | '16:9';
-type Template = 'minimal' | 'stats' | 'branded' | 'route-focus' | 'apple-fitness';
+type Template = 'strava-classic' | 'apple-fitness' | 'minimal' | 'route-focus';
 type Filter = 'none' | 'chrome' | 'mono' | 'fade' | 'warm' | 'cool' | 'contrast' | 'cinematic';
+type PhotoPos = 'center' | 'top' | 'bottom' | 'left' | 'right';
+
+const FORMAT_CONFIG = {
+  '1:1': { width: 1080, height: 1080, label: 'Square' },
+  '9:16': { width: 1080, height: 1920, label: 'Story' },
+  '16:9': { width: 1200, height: 675, label: 'Landscape' }
+};
 
 export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
   const [photo, setPhoto] = useState<string | null>(null);
   const [format, setFormat] = useState<Format>('1:1');
-  const [template, setTemplate] = useState<Template>('stats');
+  const [template, setTemplate] = useState<Template>('strava-classic');
   const [filter, setFilter] = useState<Filter>('none');
+  const [photoPos, setPhotoPos] = useState<PhotoPos>('center');
   const [showStats, setShowStats] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [fullscreenPreview, setFullscreenPreview] = useState(false);
+  const [showDebug, setShowDebug] = useState(false);
+  
   const previewRef = useRef<HTMLDivElement>(null);
 
-  // Restore scroll on unmount
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => {
@@ -44,8 +59,12 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
     if (!previewRef.current || !photo) return;
     setIsExporting(true);
     try {
+      const config = FORMAT_CONFIG[format];
       const filename = `zonecoach-run-${run.date}-${run.distance.toFixed(2)}mi.png`;
-      await saveRecapToDevice(previewRef.current, filename);
+      await saveRecapToDevice(previewRef.current, filename, {
+        width: config.width,
+        height: config.height
+      });
     } catch (err: any) {
       console.error('Export failed:', err);
       alert(err.message || 'Failed to save recap image.');
@@ -54,117 +73,210 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
     }
   };
 
-  const RecapPreview = ({ isLarge = false }: { isLarge?: boolean }) => (
-    <div 
-      ref={isLarge ? null : previewRef}
-      className={clsx(
-        "relative bg-slate-100 shadow-2xl overflow-hidden transition-all duration-500 z-10",
-        format === '1:1' ? (isLarge ? 'aspect-square w-full max-w-lg' : 'aspect-square w-full max-w-md') : 
-        format === '9:16' ? (isLarge ? 'aspect-[9/16] h-[75vh]' : 'aspect-[9/16] w-full max-w-[320px] sm:max-w-md mx-auto') : 
-        (isLarge ? 'aspect-[16/9] w-full max-w-2xl' : 'aspect-[16/9] w-full max-w-lg'),
-        !isLarge && "rounded-[2rem]",
-        filter === 'chrome' && 'sepia-[0.3] contrast-125',
-        filter === 'mono' && 'grayscale',
-        filter === 'fade' && 'brightness-110 saturate-[0.8]',
-        filter === 'warm' && 'sepia-[0.2] saturate-125 hue-rotate-15',
-        filter === 'cool' && 'saturate-110 hue-rotate-[-15deg] brightness-105',
-        filter === 'contrast' && 'contrast-150 brightness-90',
-        filter === 'cinematic' && 'brightness-75 contrast-125 saturate-150'
-      )}
-    >
-       {photo ? (
-         <img 
-           src={photo} 
-           alt="Recap" 
-           className="w-full h-full object-cover pointer-events-none" 
-           crossOrigin="anonymous"
-         />
-       ) : (
-         <div className="w-full h-full flex flex-col items-center justify-center p-12 text-center space-y-4">
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-slate-300 shadow-sm">
-               <ImageIcon size={32} />
+  const fastestSplit = getFastestSplit(run.splits);
+  const avgPace = calculatePace(run.duration, run.distance);
+
+  const RecapPreview = ({ isLarge = false }: { isLarge?: boolean }) => {
+    const config = FORMAT_CONFIG[format];
+    
+    return (
+      <div 
+        className="recap-preview-wrapper flex items-center justify-center w-full"
+        style={{ perspective: '1000px' }}
+      >
+        <div 
+          ref={isLarge ? null : previewRef}
+          data-format={format}
+          className={clsx(
+            "relative bg-black overflow-hidden shadow-2xl transition-all duration-500 z-10 select-none",
+            !isLarge && "rounded-[1.5rem]",
+            showDebug && "ring-4 ring-red-500 ring-inset"
+          )}
+          style={{
+            width: config.width,
+            height: config.height,
+            // Visually scale down to fit container while maintaining internal pixel size
+            transform: isLarge ? 'none' : `scale(${Math.min(0.8, (window.innerWidth - 64) / config.width)})`,
+            transformOrigin: 'center center',
+            flexShrink: 0
+          }}
+        >
+          {/* Debug Info Overlay */}
+          {showDebug && (
+            <div className="absolute top-4 left-4 z-[100] bg-red-600 text-white p-4 font-mono text-xs space-y-1 rounded-lg pointer-events-none">
+              <p>EXPORT BOUNDARY (RED RING)</p>
+              <p>Format: {format}</p>
+              <p>Dimensions: {config.width}x{config.height}</p>
+              <p>Photo Pos: {photoPos}</p>
             </div>
-            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Photo Required</p>
-         </div>
-       )}
+          )}
 
-       {showStats && photo && (
-         <div className="absolute inset-0 pointer-events-none z-20">
-            <div className={clsx(
-              "absolute inset-0 transition-opacity duration-500 pointer-events-none",
-              template === 'minimal' ? "bg-black/10" :
-              template === 'apple-fitness' ? "bg-gradient-to-br from-black/50 via-transparent to-black/50" :
-              template === 'branded' ? "bg-gradient-to-t from-blue-900/60 to-transparent" :
-              "bg-gradient-to-t from-black/60 via-transparent to-transparent"
-            )} />
+          {/* Background Photo */}
+          {photo ? (
+            <img 
+              src={photo} 
+              alt="Recap" 
+              className={clsx(
+                "absolute inset-0 w-full h-full object-cover transition-all duration-300",
+                photoPos === 'top' && 'object-top',
+                photoPos === 'bottom' && 'object-bottom',
+                photoPos === 'center' && 'object-center',
+                photoPos === 'left' && 'object-left',
+                photoPos === 'right' && 'object-right',
+                filter === 'chrome' && 'sepia-[0.3] contrast-125',
+                filter === 'mono' && 'grayscale',
+                filter === 'fade' && 'brightness-110 saturate-[0.8]',
+                filter === 'warm' && 'sepia-[0.2] saturate-125 hue-rotate-15',
+                filter === 'cool' && 'saturate-110 hue-rotate-[-15deg] brightness-105',
+                filter === 'contrast' && 'contrast-150 brightness-90',
+                filter === 'cinematic' && 'brightness-75 contrast-125 saturate-150'
+              )} 
+              crossOrigin="anonymous"
+            />
+          ) : (
+            <div className="w-full h-full flex flex-col items-center justify-center p-12 text-center space-y-4 bg-slate-900">
+               <ImageIcon size={64} className="text-slate-800" />
+               <p className="text-sm font-black uppercase tracking-[0.4em] text-slate-700">ZoneCoach</p>
+            </div>
+          )}
 
-            {template === 'stats' && (
-              <div className="absolute inset-0 p-6 md:p-8 flex flex-col justify-end text-white pointer-events-none">
-                 <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                       <div className="w-5 h-1 bg-blue-500 rounded-full" />
-                       <span className="text-[7px] font-black uppercase tracking-[0.3em] opacity-80">ZoneCoach Activity</span>
+          {/* Template Overlays */}
+          {showStats && photo && (
+            <div className="absolute inset-0 pointer-events-none z-20">
+               
+               {/* Template: Strava Classic */}
+               {template === 'strava-classic' && (
+                 <div className="absolute inset-0 flex flex-col justify-between p-12 text-white">
+                    {/* Top Section */}
+                    <div className="flex justify-between items-start">
+                       <div className="space-y-1">
+                          <h2 className="text-4xl font-black tracking-tight uppercase">Afternoon Run</h2>
+                          <p className="text-xl font-bold opacity-60">{new Date(run.date).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                       </div>
+                       <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                          <Maximize size={24} className="text-white" />
+                       </div>
                     </div>
-                    <h4 className="text-5xl font-black italic tracking-tighter leading-none mb-1">
-                      {run.distance.toFixed(2)}<span className="text-xl ml-1">mi</span>
-                    </h4>
-                    <div className="flex space-x-6 text-[7px] font-black uppercase tracking-[0.2em] opacity-70">
-                       <div><p className="text-blue-400 mb-0.5">Time</p><p>{formatDuration(run.duration)}</p></div>
-                       <div><p className="text-blue-400 mb-0.5">Pace</p><p>{calculatePace(run.duration, run.distance)}</p></div>
-                       <div><p className="text-blue-400 mb-0.5">Date</p><p>{new Date(run.date).toLocaleDateString()}</p></div>
+
+                    {/* Bottom Section */}
+                    <div className="space-y-10">
+                       <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+                       
+                       <div className="relative flex justify-between items-end">
+                          <div className="space-y-2">
+                             <p className="text-8xl font-black italic tracking-tighter leading-none">
+                                {run.distance.toFixed(2)}<span className="text-3xl ml-2 uppercase not-italic opacity-60">mi</span>
+                             </p>
+                             <div className="flex space-x-12 pt-4">
+                                <div className="space-y-1">
+                                   <p className="text-xs font-black uppercase tracking-widest opacity-50">Time</p>
+                                   <p className="text-2xl font-black">{formatDuration(run.duration)}</p>
+                                </div>
+                                <div className="space-y-1">
+                                   <p className="text-xs font-black uppercase tracking-widest opacity-50">Avg Pace</p>
+                                   <p className="text-2xl font-black">{avgPace}</p>
+                                </div>
+                                {fastestSplit && (
+                                   <div className="space-y-1">
+                                      <p className="text-xs font-black uppercase tracking-widest opacity-50">Fastest Mile</p>
+                                      <p className="text-2xl font-black">{calculatePace(fastestSplit.time, 1)}</p>
+                                   </div>
+                                )}
+                             </div>
+                          </div>
+
+                          <div className="w-48 h-48 opacity-90 drop-shadow-[0_0_20px_rgba(255,255,255,0.4)]">
+                             {run.routePoints && <RouteSvgOverlay points={run.routePoints} size={300} />}
+                          </div>
+                       </div>
                     </div>
                  </div>
-              </div>
-            )}
+               )}
 
-            {template === 'apple-fitness' && (
-              <div className="absolute inset-0 p-10 flex flex-col items-center justify-center text-center space-y-6 text-white pointer-events-none">
-                 <div className="w-16 h-16 rounded-full border-4 border-rose-500 flex items-center justify-center">
-                    <ActivityIcon className="text-rose-500" size={32} />
+               {/* Template: Apple Fitness Style */}
+               {template === 'apple-fitness' && (
+                 <div className="absolute inset-0 flex flex-col items-center justify-center p-12 text-center text-white bg-black/20">
+                    <div className="w-24 h-24 rounded-full border-8 border-rose-500 flex items-center justify-center mb-8 shadow-2xl">
+                       <Maximize size={48} className="text-rose-500" />
+                    </div>
+                    <div className="space-y-4">
+                       <p className="text-7xl font-black italic tracking-tighter leading-none">{run.distance.toFixed(2)} MI</p>
+                       <div className="h-1 w-24 bg-white/20 rounded-full mx-auto" />
+                       <p className="text-xl font-black uppercase tracking-[0.4em] opacity-60">Total Distance</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-20 pt-16">
+                       <div className="text-left space-y-1">
+                          <p className="text-xs font-black uppercase tracking-widest text-rose-400">Pace</p>
+                          <p className="text-4xl font-black italic tracking-tighter leading-none">{avgPace}</p>
+                       </div>
+                       <div className="text-right space-y-1">
+                          <p className="text-xs font-black uppercase tracking-widest text-rose-400">Time</p>
+                          <p className="text-4xl font-black italic tracking-tighter leading-none">{formatDuration(run.duration)}</p>
+                       </div>
+                    </div>
+                    <div className="absolute bottom-16 w-3/4 h-24 opacity-80">
+                       {run.routePoints && <RouteSvgOverlay points={run.routePoints} size={400} />}
+                    </div>
                  </div>
-                 <div className="space-y-1">
-                    <p className="text-4xl font-black italic tracking-tighter leading-none">{run.distance.toFixed(2)} MI</p>
-                    <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-300">Total Distance</p>
-                 </div>
-                 <div className="grid grid-cols-2 gap-x-12 pt-4">
-                    <div className="text-left"><p className="text-[6px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Pace</p><p className="text-lg font-black">{calculatePace(run.duration, run.distance)}</p></div>
-                    <div className="text-right"><p className="text-[6px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Time</p><p className="text-lg font-black">{formatDuration(run.duration)}</p></div>
-                 </div>
-              </div>
-            )}
+               )}
 
-            {template === 'route-focus' && (
-              <div className="absolute inset-0 p-8 flex flex-col items-center justify-center pointer-events-none">
-                 <div className="w-full h-full max-w-[80%] max-h-[80%] opacity-90 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
-                    {run.routePoints && <RouteSvgOverlay points={run.routePoints} size={500} />}
+               {/* Template: Minimal */}
+               {template === 'minimal' && (
+                 <div className="absolute inset-0 flex flex-col justify-end p-12 text-white">
+                    <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="relative space-y-4">
+                       <h4 className="text-8xl font-black italic tracking-tighter leading-none">{run.distance.toFixed(2)}</h4>
+                       <div className="flex space-x-8 text-sm font-black uppercase tracking-[0.3em] opacity-80">
+                          <span>{avgPace}</span>
+                          <span>{formatDuration(run.duration)}</span>
+                          <span>{new Date(run.date).toLocaleDateString()}</span>
+                       </div>
+                    </div>
                  </div>
-                 <div className="absolute bottom-8 left-8 text-white text-left">
-                    <p className="text-3xl font-black italic tracking-tighter leading-none">{run.distance.toFixed(2)}</p>
-                    <p className="text-[7px] font-black uppercase tracking-[0.3em] text-blue-400">Miles Captured</p>
+               )}
+
+               {/* Template: Route Focus */}
+               {template === 'route-focus' && (
+                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none bg-black/10">
+                    <div className="w-full h-full max-w-[85%] max-h-[85%] opacity-100 drop-shadow-[0_0_30px_rgba(255,255,255,0.6)]">
+                       {run.routePoints && <RouteSvgOverlay points={run.routePoints} size={800} />}
+                    </div>
+                    <div className="absolute bottom-12 left-12 text-white text-left drop-shadow-lg">
+                       <p className="text-6xl font-black italic tracking-tighter leading-none mb-2">{run.distance.toFixed(2)}</p>
+                       <p className="text-xs font-black uppercase tracking-[0.5em] text-blue-400">ZoneCoach Trail</p>
+                    </div>
                  </div>
-              </div>
-            )}
-         </div>
-       )}
-    </div>
-  );
+               )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="fixed inset-0 z-[100] bg-white flex flex-col overflow-hidden">
-      {/* Editor Header */}
-      <header className="h-16 px-6 flex items-center justify-between shrink-0 border-b border-slate-50">
-         <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-900 transition-colors">
+    <div className="fixed inset-0 z-[100] bg-[#0F172A] flex flex-col overflow-hidden">
+      {/* Dark Editor Header */}
+      <header className="h-16 px-6 flex items-center justify-between shrink-0 border-b border-white/5 bg-slate-900/50 backdrop-blur-xl">
+         <button onClick={onClose} className="p-2 text-slate-400 hover:text-white transition-colors">
             <X size={24} strokeWidth={2.5} />
          </button>
          <div className="flex flex-col items-center">
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-300">Editor</span>
-            <span className="text-xs font-black italic tracking-tight text-slate-900">Final Assignment</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-blue-500">Recap Editor</span>
+            <span className="text-xs font-black italic tracking-tight text-white">{run.distance.toFixed(2)} Mile Achievement</span>
          </div>
-         <div className="w-10 h-10 flex items-center justify-center">
+         <div className="flex items-center space-x-2">
+            <button 
+              onClick={() => setShowDebug(!showDebug)}
+              className={clsx("p-2 rounded-lg transition-colors", showDebug ? "text-red-500 bg-red-500/10" : "text-slate-500")}
+              title="Toggle Export Boundary"
+            >
+               <Bug size={18} />
+            </button>
             {photo && (
                <button 
                  onClick={() => setFullscreenPreview(true)}
-                 className="p-2 text-slate-900"
+                 className="p-2 text-white hover:bg-white/10 rounded-lg transition-all"
                >
                   <Maximize2 size={20} />
                </button>
@@ -172,42 +284,65 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
          </div>
       </header>
 
-      {/* Viewport Area */}
-      <div className="flex-1 overflow-y-auto bg-slate-50/50 flex flex-col">
-         {/* Top Preview */}
-         <div className="p-6 md:p-12 flex items-center justify-center shrink-0">
+      {/* Main Viewport Area */}
+      <div className="flex-1 overflow-y-auto flex flex-col bg-slate-950">
+         {/* Top Scaling Preview */}
+         <div className="p-8 md:p-16 flex items-center justify-center min-h-[50vh] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-from)_0%,_transparent_70%)] from-blue-900/20">
             <RecapPreview />
          </div>
 
-         {/* Control Panel */}
-         <div className="flex-1 bg-white rounded-t-[3rem] shadow-[0_-20px_40px_rgba(0,0,0,0.03)] p-8 space-y-10 pb-40">
-            {/* 1. Photo Section */}
-            {!photo && (
+         {/* Bottom Control Panel */}
+         <div className="flex-1 bg-white rounded-t-[3rem] shadow-[0_-20px_60px_rgba(0,0,0,0.4)] p-8 space-y-12 pb-44">
+            
+            {/* 1. Photo Contextual Controls */}
+            {!photo ? (
                <section className="space-y-4">
-                  <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">1. Add Background</h4>
+                  <div className="flex items-center justify-between px-2">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">1. Select Photo</h4>
+                  </div>
                   <PhotoInput onPhotoSelected={setPhoto} onClear={() => setPhoto(null)} currentPhoto={photo} />
                </section>
-            )}
-
-            {photo && (
+            ) : (
                <>
-                  {/* Aspect Ratio */}
-                  <section className="space-y-4">
+                  {/* Photo Position Controls */}
+                  <section className="space-y-4 animate-in slide-in-from-bottom-4 duration-300">
                      <div className="flex items-center justify-between px-2">
-                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Layout</h4>
-                        <button onClick={() => setPhoto(null)} className="text-[8px] font-black uppercase text-rose-500 tracking-widest">Clear Photo</button>
+                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Photo Position</h4>
+                        <button onClick={() => setPhoto(null)} className="text-[8px] font-black uppercase text-rose-500 tracking-widest">Replace Photo</button>
                      </div>
+                     <div className="flex gap-4 justify-center">
+                        <button onClick={() => setPhotoPos('top')} className={clsx("p-4 rounded-2xl border-2 transition-all", photoPos === 'top' ? "border-blue-600 bg-blue-50 text-blue-600" : "border-slate-100 text-slate-400")}>
+                           <ChevronUp size={20} />
+                        </button>
+                        <button onClick={() => setPhotoPos('center')} className={clsx("p-4 rounded-2xl border-2 transition-all", photoPos === 'center' ? "border-blue-600 bg-blue-50 text-blue-600" : "border-slate-100 text-slate-400")}>
+                           <Maximize size={20} />
+                        </button>
+                        <button onClick={() => setPhotoPos('bottom')} className={clsx("p-4 rounded-2xl border-2 transition-all", photoPos === 'bottom' ? "border-blue-600 bg-blue-50 text-blue-600" : "border-slate-100 text-slate-400")}>
+                           <ChevronDown size={20} />
+                        </button>
+                        <button onClick={() => setPhotoPos('left')} className={clsx("p-4 rounded-2xl border-2 transition-all", photoPos === 'left' ? "border-blue-600 bg-blue-50 text-blue-600" : "border-slate-100 text-slate-400")}>
+                           <ChevronLeft size={20} />
+                        </button>
+                        <button onClick={() => setPhotoPos('right')} className={clsx("p-4 rounded-2xl border-2 transition-all", photoPos === 'right' ? "border-blue-600 bg-blue-50 text-blue-600" : "border-slate-100 text-slate-400")}>
+                           <ChevronRight size={20} />
+                        </button>
+                     </div>
+                  </section>
+
+                  {/* Format Selector */}
+                  <section className="space-y-4">
+                     <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">Output Format</h4>
                      <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-2 px-2">
                         {(['1:1', '9:16', '16:9'] as Format[]).map(f => (
                            <button
                              key={f}
                              onClick={() => setFormat(f)}
                              className={clsx(
-                               "shrink-0 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
-                               format === f ? "bg-slate-900 text-white shadow-lg" : "bg-slate-50 text-slate-400"
+                               "shrink-0 px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2",
+                               format === f ? "border-slate-900 bg-slate-900 text-white shadow-xl" : "border-slate-100 text-slate-400 bg-white"
                              )}
                            >
-                              {f === '1:1' ? 'Square' : f === '9:16' ? 'Story' : 'Wide'}
+                              {FORMAT_CONFIG[f].label}
                            </button>
                         ))}
                      </div>
@@ -217,13 +352,13 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
                   <section className="space-y-4">
                      <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">Overlay Style</h4>
                      <div className="flex gap-3 overflow-x-auto no-scrollbar -mx-2 px-2">
-                        {(['stats', 'minimal', 'apple-fitness', 'route-focus', 'branded'] as Template[]).map(t => (
+                        {(['strava-classic', 'apple-fitness', 'minimal', 'route-focus'] as Template[]).map(t => (
                            <button
                              key={t}
                              onClick={() => setTemplate(t)}
                              className={clsx(
-                               "shrink-0 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all",
-                               template === t ? "bg-blue-600 text-white shadow-lg" : "bg-slate-50 text-slate-400"
+                               "shrink-0 px-8 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2",
+                               template === t ? "border-blue-600 bg-blue-600 text-white shadow-xl" : "border-slate-100 text-slate-400 bg-white"
                              )}
                            >
                               {t.replace('-', ' ')}
@@ -232,15 +367,15 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
                      </div>
                   </section>
 
-                  {/* Color Filter */}
+                  {/* Visual Color Filters */}
                   <section className="space-y-4">
                      <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-2">Color Filter</h4>
                      <div className="flex gap-4 overflow-x-auto no-scrollbar -mx-2 px-2">
                         {(['none', 'chrome', 'mono', 'fade', 'warm', 'cool', 'contrast', 'cinematic'] as Filter[]).map(f => (
                            <button key={f} onClick={() => setFilter(f)} className="shrink-0 flex flex-col items-center space-y-2 group">
                               <div className={clsx(
-                                "w-14 h-14 rounded-2xl border-2 overflow-hidden transition-all",
-                                filter === f ? "border-blue-600 scale-105 shadow-md" : "border-transparent"
+                                "w-16 h-16 rounded-2xl border-2 overflow-hidden transition-all",
+                                filter === f ? "border-blue-600 scale-110 shadow-lg" : "border-transparent"
                               )}>
                                  <div className={clsx(
                                    "w-full h-full bg-slate-300",
@@ -259,21 +394,21 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
                      </div>
                   </section>
 
-                  {/* Display Toggle */}
+                  {/* Display Analytics Toggle */}
                   <section>
                      <button 
                        onClick={() => setShowStats(!showStats)}
-                       className="flex items-center justify-between w-full p-6 bg-slate-50 rounded-[2rem] transition-colors"
+                       className="flex items-center justify-between w-full p-6 bg-slate-50 rounded-[2.5rem] transition-colors hover:bg-slate-100"
                      >
                         <div className="flex items-center space-x-3 text-slate-900">
                            <Type size={18} className="text-slate-400" />
-                           <span className="text-[10px] font-black uppercase tracking-widest italic">Display Analytics</span>
+                           <span className="text-[11px] font-black uppercase tracking-widest italic">Display Analytics Overlay</span>
                         </div>
                         <div className={clsx(
-                          "w-10 h-6 rounded-full transition-colors relative flex items-center p-1",
-                          showStats ? "bg-blue-600" : "bg-slate-200"
+                          "w-12 h-7 rounded-full transition-colors relative flex items-center p-1",
+                          showStats ? "bg-blue-600" : "bg-slate-300"
                         )}>
-                           <div className={clsx("w-4 h-4 bg-white rounded-full transition-all", showStats ? "translate-x-4" : "translate-x-0")} />
+                           <div className={clsx("w-5 h-5 bg-white rounded-full transition-all shadow-sm", showStats ? "translate-x-5" : "translate-x-0")} />
                         </div>
                      </button>
                   </section>
@@ -282,44 +417,50 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
          </div>
       </div>
 
-      {/* Footer Save Bar */}
-      <footer className="fixed bottom-0 left-0 w-full p-6 bg-white/95 backdrop-blur-xl border-t border-slate-50 z-[110] pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-         <div className="max-w-md mx-auto space-y-3">
+      {/* Floating Footer Save Bar */}
+      <footer className="fixed bottom-0 left-0 w-full p-6 bg-white/95 backdrop-blur-2xl border-t border-slate-100 z-[110] pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+         <div className="max-w-md mx-auto space-y-4">
             <button 
               onClick={handleExport}
               disabled={!photo || isExporting}
-              className="w-full py-5 bg-slate-900 text-white rounded-3xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center space-x-3 shadow-2xl disabled:opacity-10 active:scale-95 transition-all"
+              className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-black uppercase tracking-[0.3em] text-xs flex items-center justify-center space-x-3 shadow-2xl disabled:opacity-20 active:scale-95 transition-all group"
             >
                {isExporting ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin" />
                ) : (
                   <>
-                     <Download size={18} strokeWidth={3} />
+                     <Download size={20} className="group-hover:-translate-y-1 transition-transform" strokeWidth={3} />
                      <span>Save to Device</span>
                   </>
                )}
             </button>
-            <p className="text-[9px] font-bold text-slate-400 text-center uppercase tracking-widest px-4 leading-relaxed">
-               Save the PNG first, then send it from your Photos or Files app.
+            <p className="text-[10px] font-bold text-slate-400 text-center uppercase tracking-widest px-8 leading-relaxed">
+               PNG format • 1080p+ Resolution • Saved to Files/Photos
             </p>
          </div>
       </footer>
 
-      {/* Fullscreen Preview Modal */}
+      {/* Fullscreen High-Res Preview */}
       {fullscreenPreview && (
-        <div className="fixed inset-0 z-[200] bg-slate-900 flex flex-col">
-           <header className="h-16 flex items-center justify-between px-6 shrink-0">
-              <span className="text-white text-[10px] font-black uppercase tracking-widest">Inspection Mode</span>
-              <button onClick={() => setFullscreenPreview(false)} className="p-2 text-white/50">
-                 <X size={24} />
+        <div className="fixed inset-0 z-[200] bg-slate-950 flex flex-col animate-in fade-in duration-300">
+           <header className="h-16 flex items-center justify-between px-6 shrink-0 bg-black/20 backdrop-blur-md">
+              <span className="text-white text-[10px] font-black uppercase tracking-[0.3em]">Full Detail View</span>
+              <button onClick={() => setFullscreenPreview(false)} className="p-2 text-white/50 hover:text-white transition-colors">
+                 <X size={28} />
               </button>
            </header>
-           <div className="flex-1 p-8 flex items-center justify-center">
-              <RecapPreview isLarge />
+           <div className="flex-1 p-8 flex items-center justify-center overflow-auto bg-[radial-gradient(circle_at_center,_#1e293b_0%,_#020617_100%)]">
+              <div className="min-w-fit min-h-fit shadow-[0_0_100px_rgba(0,0,0,0.5)]">
+                 <RecapPreview isLarge />
+              </div>
            </div>
-           <footer className="p-8 shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))]">
-              <button onClick={handleExport} className="w-full py-6 bg-blue-600 text-white rounded-[2.5rem] font-black uppercase tracking-widest text-[10px] shadow-2xl active:scale-95 transition-all">
-                 Confirm & Save to Device
+           <footer className="p-8 shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))] bg-black/40 backdrop-blur-xl">
+              <button 
+                onClick={handleExport} 
+                disabled={isExporting}
+                className="w-full py-6 bg-blue-600 text-white rounded-[2.5rem] font-black uppercase tracking-[0.2em] text-xs shadow-2xl active:scale-95 transition-all flex items-center justify-center space-x-3"
+              >
+                 {isExporting ? <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin" /> : <span>Confirm & Save High-Res</span>}
               </button>
            </footer>
         </div>
@@ -327,7 +468,3 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
     </div>
   );
 };
-
-const ActivityIcon = (props: any) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
-);

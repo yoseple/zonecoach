@@ -1,13 +1,15 @@
 import * as htmlToImage from 'html-to-image';
 
 /**
- * Wait for all images inside an element to be fully loaded.
+ * Wait for all images inside an element to be fully loaded and decoded.
  */
 async function waitForImagesToLoad(element: HTMLElement): Promise<void> {
   const images = Array.from(element.querySelectorAll('img'));
   
   const promises = images.map((img) => {
-    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+    if (img.complete && img.naturalWidth > 0) {
+      return img.decode().catch(() => {});
+    }
     
     return new Promise<void>((resolve) => {
       const timeout = setTimeout(() => {
@@ -17,7 +19,7 @@ async function waitForImagesToLoad(element: HTMLElement): Promise<void> {
 
       img.onload = () => {
         clearTimeout(timeout);
-        resolve();
+        img.decode().then(resolve).catch(resolve);
       };
       
       img.onerror = () => {
@@ -31,41 +33,36 @@ async function waitForImagesToLoad(element: HTMLElement): Promise<void> {
   await Promise.all(promises);
 }
 
+interface ExportDimensions {
+  width: number;
+  height: number;
+}
+
 /**
- * Generates a PNG recap photo and triggers a device download.
+ * Generates a high-quality PNG recap photo and triggers a device download.
+ * Uses fixed dimensions to prevent cropping bugs on mobile.
  */
 export const saveRecapToDevice = async (
   element: HTMLElement,
-  filename: string
+  filename: string,
+  targetDimensions: ExportDimensions
 ): Promise<void> => {
   if (!element) throw new Error("Preview element not found");
 
-  // 1. Force a "clean" layout for measurement
-  // We take the scroll dimensions to ensure we get the UN-CROPPED area
-  const width = element.scrollWidth;
-  const height = element.scrollHeight;
-
-  if (!width || !height) {
-    throw new Error("Preview is not ready yet. Please ensure the photo is displayed.");
-  }
-
-  // 2. Wait for images and layout to settle
+  // 1. Wait for images and layout to settle
   await waitForImagesToLoad(element);
   await new Promise(resolve => requestAnimationFrame(resolve));
-  await new Promise(r => setTimeout(r, 500));
+  await new Promise(r => setTimeout(r, 400));
 
-  // 3. Apply temporary export-safe styling
-  element.classList.add("recap-export-safe");
-  
+  // 2. Capture using fixed dimensions
+  // html-to-image will apply these styles to a CLONE of the element
   try {
     const exportOptions = {
       cacheBust: true,
-      pixelRatio: 3, // Higher quality
-      backgroundColor: "#ffffff",
-      width, // Force explicit dimensions
-      height,
-      canvasWidth: width,
-      canvasHeight: height,
+      pixelRatio: 1, // Use 1 since we provide large fixed dimensions (1080px+)
+      backgroundColor: "#000000",
+      width: targetDimensions.width,
+      height: targetDimensions.height,
       style: {
         transform: "none",
         borderRadius: "0",
@@ -74,25 +71,33 @@ export const saveRecapToDevice = async (
         padding: "0",
         left: "0",
         top: "0",
-        position: "relative", // Ensure it's not fixed/absolute during capture
+        width: `${targetDimensions.width}px`,
+        height: `${targetDimensions.height}px`,
+        position: "relative",
       },
       filter: (node: Node) => {
         if (!(node instanceof HTMLElement)) return true;
+        // Skip elements marked with data-no-export
         return node.dataset?.noExport !== 'true';
       },
     };
 
-    // 4. Capture as PNG DataURL (More reliable than Blob for forced dimensions)
+    // 3. Generate PNG
     const dataUrl = await htmlToImage.toPng(element, exportOptions);
     
     if (!dataUrl || dataUrl.length < 1000) {
       throw new Error("Generated image was invalid. Try a smaller photo.");
     }
 
+    // 4. Convert to Blob for cleaner download
     const response = await fetch(dataUrl);
     const blob = await response.blob();
 
-    // 5. Trigger download
+    if (!blob || blob.size === 0) {
+      throw new Error("Generated image file was empty.");
+    }
+
+    // 5. Trigger download via anchor tag
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
@@ -105,20 +110,17 @@ export const saveRecapToDevice = async (
     setTimeout(() => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-    }, 1000);
+    }, 1500);
 
   } catch (error) {
     console.error('Recap Export Debug Info:', {
       elementExists: !!element,
-      width,
-      height,
+      targetDimensions,
       imageCount: element.querySelectorAll('img').length,
       userAgent: navigator.userAgent,
       error
     });
     
     throw new Error('Couldn’t save recap image. Try changing the filter to None or using a smaller photo.');
-  } finally {
-    element.classList.remove("recap-export-safe");
   }
 };
