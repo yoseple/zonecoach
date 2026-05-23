@@ -11,7 +11,8 @@ import {
   Smartphone,
   Menu,
   User,
-  Play
+  Play,
+  Footprints
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useRunStore } from '../store/useRunStore';

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { LiveSplit } from '../utils/splits';
+import { LiveSplit } from '../utils/splits';
 import { formatDuration } from '../utils/calculations';
 
 interface Props {

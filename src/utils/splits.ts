@@ -1,4 +1,4 @@
-import type { Split } from '../types';
+import { Split } from '../types';
 import { secondsToPace } from './pace';
 
 export const interpolateSplitTime = (
