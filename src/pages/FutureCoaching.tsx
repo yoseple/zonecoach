@@ -3,7 +3,6 @@ import {
   ShieldCheck, 
   Watch, 
   Heart, 
-  Activity, 
   Zap, 
   Smartphone, 
   Lock,
@@ -11,7 +10,6 @@ import {
   Settings,
   Database
 } from 'lucide-react';
-import { clsx } from 'clsx';
 
 export const FutureCoaching: React.FC = () => {
   return (
