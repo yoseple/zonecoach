@@ -17,20 +17,35 @@ export const saveRecapToDevice = async (
       })
     );
 
-    // 2. Generate JPEG Blob
+    // 2. Generate JPEG Blob with Retries
     // We use toBlob for better mobile compatibility and memory management
-    const blob = await htmlToImage.toBlob(previewElement, {
-      quality: 0.95,
-      pixelRatio: 3,
-      skipAutoScale: true,
-      cacheBust: true,
-      style: {
-        borderRadius: '0',
-        transform: 'none',
-      }
-    });
+    let blob: Blob | null = null;
+    let attempts = 0;
+    const maxAttempts = 3;
 
-    if (!blob) throw new Error('Failed to generate image blob');
+    while (attempts < maxAttempts && !blob) {
+      try {
+        attempts++;
+        // Small progressive delay between attempts
+        if (attempts > 1) await new Promise(r => setTimeout(r, 500 * attempts));
+        
+        blob = await htmlToImage.toBlob(previewElement, {
+          quality: 0.9, // Slightly lower quality for better success rate
+          pixelRatio: 2, // Standard high-quality (3 might be too much for some mobile RAM)
+          skipAutoScale: true,
+          cacheBust: true,
+          style: {
+            borderRadius: '0',
+            transform: 'none',
+          }
+        });
+      } catch (err) {
+        console.error(`Attempt ${attempts} failed:`, err);
+        if (attempts === maxAttempts) throw err;
+      }
+    }
+
+    if (!blob) throw new Error('Failed to generate image blob after multiple attempts');
 
     // 3. Trigger Save/Share
     // On iOS/Mobile Safari, navigator.share with a File object is the ONLY reliable 
