@@ -24,6 +24,7 @@ const navItems = [
   { path: '/records', label: 'PRs & Best Hooks', icon: Trophy },
   { path: '/training', label: 'Training Plans', icon: Calendar },
   { path: '/stats', label: 'Analysis', icon: BarChart2 },
+  { path: '/gear', label: 'Gear Locker', icon: Footprints },
   { path: '/settings', label: 'Zones & Profile', icon: Settings },
 ];
 

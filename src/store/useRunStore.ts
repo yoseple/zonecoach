@@ -1,10 +1,11 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Run, UserProfile, TrainingPlan } from '../types';
+import type { Run, UserProfile, TrainingPlan, Shoe } from '../types';
 import { sampleRuns, samplePlans } from '../data/sampleData';
 
 interface RunState {
   runs: Run[];
+  shoes: Shoe[];
   userProfile: UserProfile;
   activePlanId: string | null;
   activeWorkoutId: string | null;
@@ -18,6 +19,8 @@ interface RunState {
   setActiveWorkout: (id: string | null) => void;
   selectPlan: (plan: TrainingPlan) => void;
   updateWorkoutStatus: (planId: string, workoutId: string, status: 'completed' | 'skipped' | 'rescheduled' | 'pending', runId?: string) => void;
+  addShoe: (shoe: Shoe) => void;
+  updateShoeMileage: (shoeId: string, miles: number) => void;
   resetToSampleData: () => void;
 }
 
@@ -25,6 +28,7 @@ export const useRunStore = create<RunState>()(
   persist(
     (set) => ({
       runs: sampleRuns,
+      shoes: [],
       userProfile: {
         name: 'Runner',
         zoneSettings: {
@@ -39,7 +43,8 @@ export const useRunStore = create<RunState>()(
       plans: samplePlans,
 
       addRun: (run) => set((state) => ({ 
-        runs: [run, ...state.runs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) 
+        runs: [run, ...state.runs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+        shoes: run.shoeId ? state.shoes.map(s => s.id === run.shoeId ? { ...s, currentMileage: s.currentMileage + run.distance } : s) : state.shoes
       })),
       
       deleteRun: (id) => set((state) => ({ 
@@ -72,7 +77,13 @@ export const useRunStore = create<RunState>()(
         })
       })),
 
-      resetToSampleData: () => set({ runs: sampleRuns, plans: samplePlans, activePlanId: 'plan-5k-beginner', activeWorkoutId: null }),
+      addShoe: (shoe) => set((state) => ({ shoes: [...state.shoes, shoe] })),
+
+      updateShoeMileage: (shoeId, miles) => set((state) => ({
+        shoes: state.shoes.map(s => s.id === shoeId ? { ...s, currentMileage: s.currentMileage + miles } : s)
+      })),
+
+      resetToSampleData: () => set({ runs: sampleRuns, plans: samplePlans, activePlanId: 'plan-5k-beginner', activeWorkoutId: null, shoes: [] }),
     }),
     {
       name: 'zonecoach-storage',

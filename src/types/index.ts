@@ -1,27 +1,25 @@
-export type RunType = 
-  | 'Free Run' 
-  | 'Zone 2 Run' 
-  | 'Easy Run' 
-  | 'Tempo Run' 
-  | 'Interval Run' 
-  | 'Long Run' 
-  | 'Race Pace'
-  | 'Recovery Run'
-  | 'Easy Zone 2 Run'
-  | 'Hill Repeats'
-  | 'Strides';
+import type { Run, RunType, Split, RoutePoint } from '../types';
 
-export interface Split {
-  mile: number;
-  time: number; // in seconds
-  heartRate?: number;
+export interface Shoe {
+  id: string;
+  name: string;
+  brand: string;
+  acquiredDate: string;
+  startingMileage: number;
+  currentMileage: number;
+  retired: boolean;
+  color: string;
 }
 
-export interface RoutePoint {
-  lat: number;
-  lng: number;
-  time?: string;
-  accuracy?: number;
+export interface HRSample {
+  timestamp: number;
+  bpm: number;
+}
+
+export interface TrainingInsight {
+  type: 'fatigue' | 'consistency' | 'improvement' | 'caution';
+  message: string;
+  severity: 'low' | 'medium' | 'high';
 }
 
 export interface Run {
@@ -29,15 +27,16 @@ export interface Run {
   date: string;
   title: string;
   type: RunType;
-  distance: number; // in miles
-  duration: number; // in seconds
+  distance: number;
+  duration: number;
   avgHeartRate: number;
   maxHeartRate: number;
   calories: number;
   notes: string;
   splits: Split[];
   routePoints?: RoutePoint[];
-  // Tracking Metadata
+  hrSamples?: HRSample[];
+  shoeId?: string;
   source?: 'Manual' | 'Phone GPS' | 'Apple Watch';
   accuracyMetadata?: {
     avgAccuracy: number;
@@ -46,7 +45,6 @@ export interface Run {
     acceptedPoints: number;
     rejectedPoints: number;
   };
-  // Training Metadata
   trainingWorkoutId?: string;
   trainingPlanId?: string;
   plannedWorkoutName?: string;
@@ -54,58 +52,5 @@ export interface Run {
   plannedTargetZone?: number;
   completedTrainingTarget?: boolean;
   completionPercent?: number;
-}
-
-export interface ZoneSettings {
-  age: number;
-  restingHeartRate: number;
-  maxHeartRate: number;
-  method: 'simple' | 'manual';
-  manualZones?: {
-    z1: [number, number];
-    z2: [number, number];
-    z3: [number, number];
-    z4: [number, number];
-    z5: [number, number];
-  };
-}
-
-export interface UserProfile {
-  name: string;
-  zoneSettings: ZoneSettings;
-}
-
-export interface Workout {
-  id: string;
-  planId: string;
-  week: number;
-  day: string; // 'Monday', etc.
-  type: RunType | 'Rest Day' | 'Strength Day' | 'Mobility Day';
-  targetDistance?: number;
-  targetDuration?: number;
-  targetZone?: number;
-  targetPaceMin?: string;
-  targetPaceMax?: string;
-  notes: string;
-  status: 'pending' | 'completed' | 'skipped' | 'rescheduled';
-  completedRunId?: string; // Link to the actual run
-}
-
-export interface TrainingPlan {
-  id: string;
-  title: string;
-  goal: string;
-  durationWeeks: number;
-  runsPerWeek: number;
-  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
-  workouts: Workout[];
-  startedAt?: string;
-}
-
-export interface PersonalRecord {
-  id: string;
-  label: string;
-  value: string | number;
-  date: string;
-  runId?: string;
+  insights?: TrainingInsight[];
 }

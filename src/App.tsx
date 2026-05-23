@@ -10,6 +10,7 @@ import { StatsDashboard } from './pages/StatsDashboard';
 import { ZoneSettings } from './pages/ZoneSettings';
 import { FutureCoaching } from './pages/FutureCoaching';
 import { LiveRun } from './pages/LiveRun';
+import { ShoeTracker } from './pages/ShoeTracker';
 
 function App() {
   return (
@@ -24,6 +25,7 @@ function App() {
           <Route path="records" element={<PersonalRecords />} />
           <Route path="training" element={<TrainingPlans />} />
           <Route path="stats" element={<StatsDashboard />} />
+          <Route path="gear" element={<ShoeTracker />} />
           <Route path="settings" element={<ZoneSettings />} />
           <Route path="future" element={<FutureCoaching />} />
         </Route>

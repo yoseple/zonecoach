@@ -25,6 +25,7 @@ import {
   Target,
   X,
   Zap,
+  Footprints,
   Image as ImageIcon
 } from 'lucide-react';
 import { RouteMap } from '../components/RouteMap';
@@ -35,7 +36,7 @@ import { RunRecapBuilder } from '../components/RunRecapBuilder';
 export const RunDetails: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { runs, userProfile } = useRunStore();
+  const { runs, userProfile, shoes, updateShoeMileage } = useRunStore();
   const [showRecap, setShowRecap] = React.useState(false);
   
   const run = runs.find((r) => r.id === id);
@@ -65,6 +66,13 @@ export const RunDetails: React.FC = () => {
                records.fastest5k.run?.id === run.id || 
                records.fastest10k.run?.id === run.id || 
                records.longestRun.run?.id === run.id;
+
+  const currentShoe = shoes.find(s => s.id === run.shoeId);
+
+  const handleLinkShoe = (shoeId: string) => {
+    updateShoeMileage(shoeId, run.distance);
+    alert('Shoe mileage updated!');
+  };
 
   const getAccuracyRating = (avg: number) => {
     if (avg <= 10) return { label: 'Excellent', color: 'text-emerald-500', bg: 'bg-emerald-50' };
@@ -224,6 +232,20 @@ export const RunDetails: React.FC = () => {
                     <h3 className={clsx("text-2xl font-black tracking-tight", analysis.color)}>Zone 2 Discipline</h3>
                  </div>
                  <p className="text-slate-700 font-bold text-lg max-w-xl">{analysis.feedback}</p>
+                 
+                 {/* Adaptive Insights */}
+                 <div className="pt-4 flex flex-wrap gap-2">
+                    {run.distance > 10 && (
+                       <div className="px-3 py-1 bg-purple-500/10 text-purple-600 rounded-lg text-[10px] font-black uppercase tracking-widest border border-purple-500/20">
+                          Endurance King
+                       </div>
+                    )}
+                    {analysis.score > 90 && (
+                       <div className="px-3 py-1 bg-emerald-500/10 text-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">
+                          Aerobic Legend
+                       </div>
+                    )}
+                 </div>
                </div>
                <div className="flex items-center space-x-4">
                   <div className="text-right">
@@ -232,6 +254,45 @@ export const RunDetails: React.FC = () => {
                   </div>
                </div>
             </div>
+          </div>
+
+          {/* Shoe / Gear Tracker Integration */}
+          <div className="space-y-6">
+             <h3 className="text-xl font-black text-slate-900 italic tracking-tight flex items-center space-x-3">
+                <Footprints size={20} className="text-slate-400" />
+                <span>Gear Used</span>
+             </h3>
+             {currentShoe ? (
+                <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between">
+                   <div className="flex items-center space-x-4">
+                      <div className={clsx("w-12 h-12 rounded-2xl flex items-center justify-center text-white", currentShoe.color)}>
+                         <Footprints size={24} />
+                      </div>
+                      <div>
+                         <p className="font-black text-slate-900">{currentShoe.name}</p>
+                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{currentShoe.brand} • {currentShoe.currentMileage.toFixed(1)} mi total</p>
+                      </div>
+                   </div>
+                   <div className="px-4 py-1.5 bg-slate-50 rounded-full text-[10px] font-black uppercase text-slate-400">Attached</div>
+                </div>
+             ) : (
+                <div className="bg-slate-50 p-6 rounded-[2.5rem] border border-dashed border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+                   <p className="text-sm font-bold text-slate-400 italic text-center sm:text-left">Track shoe mileage to know when to replace them.</p>
+                   <div className="flex gap-2">
+                      {shoes.length > 0 ? (
+                         <select 
+                           onChange={(e) => handleLinkShoe(e.target.value)}
+                           className="bg-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 outline-none"
+                         >
+                            <option>Select Gear...</option>
+                            {shoes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                         </select>
+                      ) : (
+                         <Link to="/gear" className="px-6 py-2 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg active:scale-95">Add Shoes</Link>
+                      )}
+                   </div>
+                </div>
+             )}
           </div>
 
           {/* Accuracy & Quality (If GPS used) */}
