@@ -29,13 +29,16 @@ export const LiveRun: React.FC = () => {
 
   const [status, setStatus] = useState<'lock' | 'ready' | 'tracking' | 'paused'>('lock');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [startTime, setStartTime] = useState<number | null>(null);
   const [mapExpanded, setMapExpanded] = useState(false);
   
+  // High-precision timing refs
+  const accumulatedTimeRef = useRef(0); // in ms
+  const startTimeRef = useRef<number | null>(null);
+  const timerIntervalRef = useRef<number | null>(null);
+
   const { acceptedPoints, totalDistance, splits, accuracy, reset, rejectedCount } = useGeolocationTracker(status === 'tracking');
   const { requestWakeLock, releaseWakeLock } = useWakeLock();
 
-  const timerRef = useRef<number | null>(null);
   const lastSplitCount = useRef(0);
 
   // GPS Lock Logic
@@ -48,20 +51,36 @@ export const LiveRun: React.FC = () => {
   // Timer logic
   useEffect(() => {
     if (status === 'tracking') {
-      if (!startTime) setStartTime(Date.now());
-      timerRef.current = window.setInterval(() => {
-        setElapsedSeconds(prev => prev + 1);
-      }, 1000);
+      startTimeRef.current = Date.now();
       requestWakeLock();
+      
+      timerIntervalRef.current = window.setInterval(() => {
+        if (startTimeRef.current) {
+          const delta = Date.now() - startTimeRef.current;
+          const totalMs = accumulatedTimeRef.current + delta;
+          setElapsedSeconds(Math.floor(totalMs / 1000));
+        }
+      }, 1000);
     } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-      if (status === 'ready' || status === 'lock') releaseWakeLock();
+      if (status === 'paused' && startTimeRef.current) {
+        accumulatedTimeRef.current += (Date.now() - startTimeRef.current);
+        startTimeRef.current = null;
+      }
+      
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current);
+        timerIntervalRef.current = null;
+      }
+      
+      if (status === 'ready' || status === 'lock') {
+        releaseWakeLock();
+      }
     }
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
-  }, [status, startTime, requestWakeLock, releaseWakeLock]);
+  }, [status, requestWakeLock, releaseWakeLock]);
 
   // Voice announcements
   useEffect(() => {
@@ -84,8 +103,9 @@ export const LiveRun: React.FC = () => {
   const handleDiscard = () => {
     if (window.confirm('Discard this run? All data will be lost.')) {
       reset();
+      accumulatedTimeRef.current = 0;
+      startTimeRef.current = null;
       setElapsedSeconds(0);
-      setStartTime(null);
       setStatus('lock');
       lastSplitCount.current = 0;
     }
