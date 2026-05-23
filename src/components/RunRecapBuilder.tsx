@@ -6,13 +6,12 @@ import {
   Download, 
   Type, 
   Image as ImageIcon,
-  Share2,
   Maximize2
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { calculatePace, formatDuration } from '../utils/calculations';
 import { RouteSvgOverlay } from './RouteSvgOverlay';
-import * as htmlToImage from 'html-to-image';
+import { saveRecapToDevice } from '../utils/imageExport';
 
 interface Props {
   run: Run;
@@ -45,44 +44,11 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
     if (!previewRef.current || !photo) return;
     setIsExporting(true);
     try {
-      // Small delay to ensure rendering is complete
-      await new Promise(r => setTimeout(r, 400));
-      
-      const dataUrl = await htmlToImage.toPng(previewRef.current, {
-        quality: 1,
-        pixelRatio: 3, // High quality for sharing
-        skipAutoScale: true,
-        cacheBust: true,
-        style: {
-          borderRadius: '0',
-          transform: 'none',
-        }
-      });
-      
-      const link = document.createElement('a');
-      link.download = `zonecoach-recap-${run.date}.png`;
-      link.href = dataUrl;
-      link.click();
-      
-      if (navigator.share) {
-         try {
-            const response = await fetch(dataUrl);
-            const blob = await response.blob();
-            const file = new File([blob], `recap.png`, { type: 'image/png' });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-               await navigator.share({
-                  files: [file],
-                  title: 'My Run Recap',
-                  text: `Captured on ZoneCoach`,
-               });
-            }
-         } catch (shareErr) {
-            console.log('Share skipped', shareErr);
-         }
-      }
+      const filename = `zonecoach-run-${run.date}-${run.distance.toFixed(2)}mi.png`;
+      await saveRecapToDevice(previewRef.current, filename);
     } catch (err) {
       console.error('Export failed:', err);
-      alert('Failed to save. Try again.');
+      alert('Failed to save to device. Please try again.');
     } finally {
       setIsExporting(false);
     }
@@ -313,26 +279,24 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
 
       {/* Footer Save Bar */}
       <footer className="fixed bottom-0 left-0 w-full p-6 bg-white/95 backdrop-blur-xl border-t border-slate-50 z-[110] pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-         <div className="max-w-md mx-auto flex gap-3">
+         <div className="max-w-md mx-auto space-y-3">
             <button 
               onClick={handleExport}
               disabled={!photo || isExporting}
-              className="flex-1 py-5 bg-slate-900 text-white rounded-3xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center space-x-3 shadow-2xl disabled:opacity-10 active:scale-95 transition-all"
+              className="w-full py-5 bg-slate-900 text-white rounded-3xl font-black uppercase tracking-[0.2em] text-[10px] flex items-center justify-center space-x-3 shadow-2xl disabled:opacity-10 active:scale-95 transition-all"
             >
                {isExporting ? (
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                ) : (
                   <>
                      <Download size={18} strokeWidth={3} />
-                     <span>Save Recap Photo</span>
+                     <span>Save to Device</span>
                   </>
                )}
             </button>
-            {photo && (
-               <button onClick={handleExport} className="w-16 h-16 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center active:scale-90 transition-all">
-                  <Share2 size={24} />
-               </button>
-            )}
+            <p className="text-[9px] font-bold text-slate-400 text-center uppercase tracking-widest px-4 leading-relaxed">
+               Save the PNG first, then send it from your Photos or Files app.
+            </p>
          </div>
       </footer>
 
@@ -350,7 +314,7 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
            </div>
            <footer className="p-8 shrink-0 pb-[calc(2rem+env(safe-area-inset-bottom))]">
               <button onClick={handleExport} className="w-full py-6 bg-blue-600 text-white rounded-[2.5rem] font-black uppercase tracking-widest text-[10px] shadow-2xl active:scale-95 transition-all">
-                 Confirm & Save
+                 Confirm & Save to Device
               </button>
            </footer>
         </div>

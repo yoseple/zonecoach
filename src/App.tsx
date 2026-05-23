@@ -4,6 +4,7 @@ import { Dashboard } from './pages/Dashboard';
 import { AddRun } from './pages/AddRun';
 import { RunHistory } from './pages/RunHistory';
 import { RunDetails } from './pages/RunDetails';
+import { RecapBuilderPage } from './pages/RecapBuilderPage';
 import { PersonalRecords } from './pages/PersonalRecords';
 import { TrainingPlans } from './pages/TrainingPlans';
 import { StatsDashboard } from './pages/StatsDashboard';
@@ -29,6 +30,7 @@ function App() {
           <Route path="settings" element={<ZoneSettings />} />
           <Route path="future" element={<FutureCoaching />} />
         </Route>
+        <Route path="runs/:id/recap-builder" element={<RecapBuilderPage />} />
       </Routes>
     </BrowserRouter>
   );

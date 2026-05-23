@@ -33,13 +33,11 @@ import {
 import { RouteMap } from '../components/RouteMap';
 import { clsx } from 'clsx';
 import { calculatePersonalRecords } from '../utils/calculations';
-import { RunRecapBuilder } from '../components/RunRecapBuilder';
 
 export const RunDetails: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { runs, userProfile, shoes, updateRunShoe } = useRunStore();
-  const [showRecap, setShowRecap] = React.useState(false);
   const [isEditingShoe, setIsEditingShoe] = React.useState(false);
   
   const run = runs.find((r) => r.id === id);
@@ -105,7 +103,7 @@ export const RunDetails: React.FC = () => {
               </div>
            )}
            <button 
-             onClick={() => setShowRecap(true)}
+             onClick={() => navigate(`/runs/${run.id}/recap-builder`)}
              className="bg-slate-900 text-white px-6 py-2 rounded-xl flex items-center space-x-2 shadow-lg shadow-slate-200 hover:bg-slate-800 transition-all active:scale-95"
            >
               <ImageIcon size={18} />
@@ -116,10 +114,6 @@ export const RunDetails: React.FC = () => {
            </button>
         </div>
       </header>
-
-      {showRecap && (
-        <RunRecapBuilder run={run} onClose={() => setShowRecap(false)} />
-      )}
 
       <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
         {/* Map Header */}
