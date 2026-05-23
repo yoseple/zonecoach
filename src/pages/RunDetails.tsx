@@ -23,16 +23,19 @@ import {
   Trophy,
   Info,
   Target,
-  X
+  X,
+  Image as ImageIcon
 } from 'lucide-react';
 import { RouteMap } from '../components/RouteMap';
 import { clsx } from 'clsx';
 import { calculatePersonalRecords } from '../utils/calculations';
+import { RunRecapBuilder } from '../components/RunRecapBuilder';
 
 export const RunDetails: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { runs, userProfile } = useRunStore();
+  const [showRecap, setShowRecap] = React.useState(false);
   
   const run = runs.find((r) => r.id === id);
 
@@ -88,11 +91,22 @@ export const RunDetails: React.FC = () => {
                 <span className="text-[10px] font-black uppercase tracking-widest text-nowrap">New Personal Record</span>
               </div>
            )}
+           <button 
+             onClick={() => setShowRecap(true)}
+             className="bg-slate-900 text-white px-6 py-2 rounded-xl flex items-center space-x-2 shadow-lg shadow-slate-200 hover:bg-slate-800 transition-all active:scale-95"
+           >
+              <ImageIcon size={18} />
+              <span className="text-[10px] font-black uppercase tracking-widest text-nowrap">Create Recap</span>
+           </button>
            <button className="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center shadow-sm hover:bg-slate-50 text-slate-500 transition-colors">
               <Share2 size={18} />
            </button>
         </div>
       </header>
+
+      {showRecap && (
+        <RunRecapBuilder run={run} onClose={() => setShowRecap(false)} />
+      )}
 
       <div className="bg-white rounded-[3rem] shadow-sm border border-slate-100 overflow-hidden">
         {/* Map Header */}
