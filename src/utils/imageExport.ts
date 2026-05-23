@@ -1,91 +1,120 @@
 import * as htmlToImage from 'html-to-image';
 
+/**
+ * Wait for all images inside an element to be fully loaded.
+ */
+async function waitForImagesToLoad(element: HTMLElement): Promise<void> {
+  const images = Array.from(element.querySelectorAll('img'));
+  
+  const promises = images.map((img) => {
+    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+    
+    return new Promise<void>((resolve) => {
+      const timeout = setTimeout(() => {
+        console.warn('Image load timed out:', img.src);
+        resolve();
+      }, 5000);
+
+      img.onload = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+      
+      img.onerror = () => {
+        clearTimeout(timeout);
+        console.warn('Image failed to load:', img.src);
+        resolve();
+      };
+    });
+  });
+
+  await Promise.all(promises);
+}
+
+/**
+ * Generates a PNG recap photo and triggers a device download.
+ */
 export const saveRecapToDevice = async (
-  previewElement: HTMLElement,
+  element: HTMLElement,
   filename: string
 ): Promise<void> => {
+  if (!element) throw new Error("Preview element not found");
+
+  const width = element.offsetWidth;
+  const height = element.offsetHeight;
+
+  if (!width || !height) {
+    throw new Error("Preview is not ready yet. Please ensure the photo is displayed.");
+  }
+
+  // 1. Wait for images and layout to settle
+  await waitForImagesToLoad(element);
+  await new Promise(resolve => requestAnimationFrame(resolve));
+  await new Promise(r => setTimeout(r, 300)); // Extra buffer for SVG/Fonts
+
+  // 2. Apply temporary export-safe styling
+  element.classList.add("recap-export-safe");
+  
   try {
-    // 1. Wait for all images to be LOADED and DECODED
-    const images = Array.from(previewElement.querySelectorAll('img'));
-    await Promise.all(
-      images.map(async (img) => {
-        if (img.complete) {
-          try { await img.decode(); } catch (e) { /* ignore */ }
-          return;
-        }
-        return new Promise((resolve) => {
-          img.onload = resolve;
-          img.onerror = resolve; // Continue anyway
-        });
-      })
-    );
+    const exportOptions = {
+      cacheBust: true,
+      pixelRatio: 2,
+      backgroundColor: "#ffffff",
+      width,
+      height,
+      style: {
+        transform: "none",
+        borderRadius: "0",
+        boxShadow: "none",
+      },
+      filter: (node: Node) => {
+        if (!(node instanceof HTMLElement)) return true;
+        return node.dataset?.noExport !== 'true';
+      },
+    };
 
-    // 2. Initial delay to allow SVG and layout to settle
-    await new Promise(r => setTimeout(r, 500));
+    // 3. Capture as Blob (Primary)
+    let blob = await htmlToImage.toBlob(element, exportOptions);
 
-    // 3. Capture using toJpeg (Often more stable than toCanvas/toBlob in this library)
-    let dataUrl: string | null = null;
-    let attempts = 0;
-    const maxAttempts = 2;
-
-    while (attempts < maxAttempts && !dataUrl) {
-      try {
-        attempts++;
-        dataUrl = await htmlToImage.toJpeg(previewElement, {
-          quality: 0.85,
-          pixelRatio: 2,
-          cacheBust: true,
-          // Extreme safety: Remove all complex styles during capture
-          style: {
-            borderRadius: '0',
-            transform: 'none',
-            boxShadow: 'none',
-            margin: '0',
-            padding: '0',
-          }
-        });
-      } catch (err) {
-        console.warn(`Export attempt ${attempts} failed:`, err);
-        if (attempts === maxAttempts) throw err;
-        await new Promise(r => setTimeout(r, 1000));
-      }
+    // 4. Capture as PNG DataURL (Fallback)
+    if (!blob) {
+      console.warn("toBlob failed, trying toPng fallback...");
+      const dataUrl = await htmlToImage.toPng(element, exportOptions);
+      const response = await fetch(dataUrl);
+      blob = await response.blob();
     }
 
-    if (!dataUrl) throw new Error('Failed to generate image data URL');
-
-    // 4. Convert DataURL to Blob (Manually, for maximum reliability)
-    const response = await fetch(dataUrl);
-    const blob = await response.blob();
-
-    if (!blob || blob.size < 1000) throw new Error('Generated image is invalid or empty');
-
-    // 5. Trigger Save/Share
-    const file = new File([blob], filename, { type: 'image/jpeg' });
-
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try {
-        await navigator.share({
-          files: [file],
-          title: 'My Run Recap',
-          text: 'Captured on ZoneCoach',
-        });
-        return;
-      } catch (shareError) {
-        if ((shareError as Error).name === 'AbortError') return;
-      }
+    if (!blob || blob.size === 0) {
+      throw new Error("Generated image was empty. Try a smaller photo or removing filters.");
     }
 
-    // 6. Fallback download
+    // 5. Trigger download via anchor tag
     const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.download = filename;
+    const link = document.createElement("a");
     link.href = url;
+    link.download = filename.endsWith(".png") ? filename : `${filename}.png`;
+    
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    
+    // Cleanup
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 1000);
+
   } catch (error) {
-    console.error('Final export failure:', error);
-    throw new Error('Image creation failed. Please try a different photo or check your browser permissions.');
+    console.error('Recap Export Debug Info:', {
+      elementExists: !!element,
+      width,
+      height,
+      imageCount: element.querySelectorAll('img').length,
+      userAgent: navigator.userAgent,
+      error
+    });
+    
+    throw new Error('Couldn’t save recap image. Try changing the filter to None or using a smaller photo.');
+  } finally {
+    element.classList.remove("recap-export-safe");
   }
 };

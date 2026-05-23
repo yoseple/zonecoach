@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+.recap-export-safe {
+  transform: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.recap-export-safe * {
+  backdrop-filter: none !important;
+}

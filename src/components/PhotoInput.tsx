@@ -8,6 +8,15 @@ interface Props {
   currentPhoto: string | null;
 }
 
+const fileToDataUrl = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 export const PhotoInput: React.FC<Props> = ({ onPhotoSelected, onClear, currentPhoto }) => {
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -19,8 +28,14 @@ export const PhotoInput: React.FC<Props> = ({ onPhotoSelected, onClear, currentP
 
     setIsProcessing(true);
     try {
+      // First, get a stable data URL
+      const dataUrl = await fileToDataUrl(file);
+      
+      // Then compress it for performance (still returns a data URL)
+      // If html-to-image is very sensitive, we could skip compression, 
+      // but usually it helps by reducing the DOM payload.
       const compressed = await compressImage(file);
-      onPhotoSelected(compressed);
+      onPhotoSelected(compressed || dataUrl);
     } catch (err) {
       console.error('Error processing image:', err);
       alert('Failed to process image. Please try another one.');
