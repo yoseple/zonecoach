@@ -98,7 +98,12 @@ export const RunDetails: React.FC = () => {
         {/* Map Header */}
         {run.routePoints && run.routePoints.length > 0 ? (
           <div className="relative group">
-            <RouteMap points={run.routePoints} />
+            <RouteMap 
+              points={run.routePoints} 
+              distance={run.distance}
+              duration={formatDuration(run.duration)}
+              pace={calculatePace(run.duration, run.distance)}
+            />
             <div className="absolute top-6 left-6 pointer-events-none">
                <div className="bg-white/90 backdrop-blur shadow-xl px-4 py-2 rounded-2xl flex items-center space-x-2 border border-white">
                   <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
