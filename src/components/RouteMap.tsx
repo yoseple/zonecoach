@@ -1,4 +1,5 @@
-import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet';
+import React, { useEffect } from 'react';
+import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import type { RoutePoint } from '../types';
@@ -20,39 +21,57 @@ interface RouteMapProps {
   points: RoutePoint[];
 }
 
+const FitBounds: React.FC<{ positions: [number, number][] }> = ({ positions }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (positions.length > 0) {
+      const bounds = L.latLngBounds(positions);
+      map.fitBounds(bounds, { padding: [20, 20] });
+    }
+  }, [positions, map]);
+  return null;
+};
+
 export const RouteMap: React.FC<RouteMapProps> = ({ points }) => {
-  if (points.length === 0) return null;
+  if (!points || points.length === 0) return null;
 
   const positions = points.map(p => [p.lat, p.lng] as [number, number]);
-  const center = positions[Math.floor(positions.length / 2)];
   const start = positions[0];
   const end = positions[positions.length - 1];
 
   return (
-    <div className="h-[400px] w-full rounded-2xl overflow-hidden border shadow-inner bg-slate-100">
+    <div className="h-[400px] w-full rounded-[2.5rem] overflow-hidden border shadow-inner bg-slate-100 relative">
       <MapContainer 
-        center={center} 
-        zoom={13} 
+        center={start} 
+        zoom={15} 
         scrollWheelZoom={false}
         className="h-full w-full"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <Polyline 
           positions={positions} 
           color="#3b82f6" 
-          weight={4}
+          weight={5}
           opacity={0.8}
         />
         <Marker position={start}>
-          <Popup>Start</Popup>
+          <Popup><span className="font-black uppercase text-[10px]">Start Location</span></Popup>
         </Marker>
         <Marker position={end}>
-          <Popup>Finish</Popup>
+          <Popup><span className="font-black uppercase text-[10px]">Finish Location</span></Popup>
         </Marker>
+        <FitBounds positions={positions} />
       </MapContainer>
+      
+      <div className="absolute top-6 right-6 z-[1000]">
+         <div className="bg-white/90 backdrop-blur shadow-xl px-4 py-2 rounded-2xl flex items-center space-x-2 border border-white">
+            <div className="w-2 h-2 rounded-full bg-blue-500" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">Route Map</span>
+         </div>
+      </div>
     </div>
   );
 };

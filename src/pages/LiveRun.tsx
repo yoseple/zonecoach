@@ -91,8 +91,22 @@ export const LiveRun: React.FC = () => {
     }
   };
 const handleEnd = () => {
-  const runId = uuidv4();
+  // Basic validation
+  const isTooShort = totalDistance < 0.03 || elapsedSeconds < 30 || acceptedPoints.length < 3;
 
+  if (isTooShort) {
+    if (!window.confirm('This activity seems too short to save. Discard it instead?')) {
+      return;
+    }
+    handleDiscard();
+    return;
+  }
+
+  if (!window.confirm('End and save this activity?')) {
+      return;
+  }
+
+  const runId = uuidv4();
   // Calculate accuracy stats
   const accuracies = acceptedPoints.map(p => p.accuracy);
   const avgAccuracy = accuracies.length > 0 ? accuracies.reduce((a, b) => a + b, 0) / accuracies.length : 0;
