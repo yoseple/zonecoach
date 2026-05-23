@@ -1,3 +1,4 @@
+import React, { useState } from 'react';
 import { useRunStore } from '../store/useRunStore';
 import { Plus, Footprints, ShieldAlert } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -6,9 +7,9 @@ import { clsx } from 'clsx';
 
 export const ShoeTracker: React.FC = () => {
   const { shoes, addShoe } = useRunStore();
-  const [showAdd, setShowAdd] = React.useState(false);
-  const [name, setName] = React.useState('');
-  const [brand, setBrand] = React.useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [name, setName] = useState('');
+  const [brand, setBrand] = useState('');
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,11 +30,11 @@ export const ShoeTracker: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-24">
       <header className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-black text-slate-900 tracking-tight italic">Gear Locker</h2>
-          <p className="text-slate-500 font-bold">Track shoe mileage to prevent injury.</p>
+          <p className="text-slate-500 font-bold text-lg leading-relaxed">Track shoe mileage to prevent injury.</p>
         </div>
         <button 
           onClick={() => setShowAdd(true)}
