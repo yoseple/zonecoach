@@ -24,6 +24,7 @@ import {
   Info,
   Target,
   X,
+  Zap,
   Image as ImageIcon
 } from 'lucide-react';
 import { RouteMap } from '../components/RouteMap';

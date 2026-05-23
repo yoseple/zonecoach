@@ -7,8 +7,7 @@ import {
   Zap, 
   ArrowRight,
   ChevronLeft,
-  ChevronRight,
-  Clock
+  ChevronRight
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { generatePlan } from '../utils/planEngine';

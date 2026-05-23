@@ -3,13 +3,9 @@ import type { Workout } from '../types';
 import { 
   Play, 
   Target, 
-  Activity, 
-  MapPin, 
-  Clock, 
   ArrowUpRight 
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { formatDuration } from '../utils/calculations';
 
 interface Props {
   workout: Workout;

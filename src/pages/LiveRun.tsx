@@ -9,7 +9,7 @@ import { GpsAccuracyBadge } from '../components/GpsAccuracyBadge';
 import { FinishRunModal } from '../components/FinishRunModal';
 import { TrainingModeBanner } from '../components/TrainingModeBanner';
 import { TrainingProgressBar } from '../components/TrainingProgressBar';
-import { formatDuration, calculatePace } from '../utils/calculations';
+import { formatDuration } from '../utils/calculations';
 import { calculateRollingPace, secondsToPace } from '../utils/pace';
 import { announceMile, speak } from '../utils/speech';
 import { 
@@ -23,12 +23,12 @@ import {
   Square,
   Volume2,
   Settings2,
-  Activity as ActivityIcon,
+  Activity,
   Trophy,
   Target
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import type { Run, RunType, Workout } from '../types';
+import type { Run, RunType } from '../types';
 import { clsx } from 'clsx';
 
 const RUN_TYPES: RunType[] = [
@@ -226,7 +226,7 @@ export const LiveRun: React.FC = () => {
            {!activeWorkout && (
              <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
                 <div className="flex items-center space-x-3 text-slate-900">
-                   <ActivityIcon size={20} className="text-blue-600" />
+                   <Activity size={20} className="text-blue-600" />
                    <h3 className="text-xl font-black italic">Activity Profile</h3>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
