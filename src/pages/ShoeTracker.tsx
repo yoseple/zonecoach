@@ -1,12 +1,11 @@
-import React from 'react';
 import { useRunStore } from '../store/useRunStore';
-import { Plus, Footprints, Trash2, ShieldAlert } from 'lucide-react';
+import { Plus, Footprints, ShieldAlert } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import { Shoe } from '../types';
+import type { Shoe } from '../types';
 import { clsx } from 'clsx';
 
 export const ShoeTracker: React.FC = () => {
-  const { shoes, addShoe, updateShoeMileage } = useRunStore();
+  const { shoes, addShoe } = useRunStore();
   const [showAdd, setShowAdd] = React.useState(false);
   const [name, setName] = React.useState('');
   const [brand, setBrand] = React.useState('');
