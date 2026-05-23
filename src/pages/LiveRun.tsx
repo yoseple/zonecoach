@@ -16,7 +16,8 @@ import {
   Activity, 
   TrendingUp,
   Zap,
-  Target
+  Target,
+  Terminal
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import type { Run } from '../types';
@@ -212,8 +213,40 @@ const handleEnd = () => {
           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Live Recording</span>
         </div>
-        <GpsAccuracyBadge accuracy={accuracy} />
+        <div className="flex items-center space-x-4">
+          <button 
+            onClick={() => setShowDebug(!showDebug)}
+            className={clsx(
+              "p-2 rounded-lg transition-colors",
+              showDebug ? "bg-slate-900 text-emerald-400" : "text-slate-300 hover:bg-slate-50 hover:text-slate-600"
+            )}
+          >
+            <Terminal size={18} />
+          </button>
+          <GpsAccuracyBadge accuracy={accuracy} />
+        </div>
       </header>
+
+      {/* Debug Panel Overlay */}
+      {showDebug && (
+        <div className="absolute top-20 right-6 z-[2000] w-64 bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl text-[10px] font-mono space-y-3 animate-in fade-in slide-in-from-top-2">
+           <div className="flex items-center space-x-2 text-emerald-400 mb-2">
+              <Terminal size={12} />
+              <span className="font-black uppercase tracking-widest">System Telemetry</span>
+           </div>
+           <div className="space-y-1 text-slate-400">
+              <p><span className="text-white font-bold">STATUS:</span> {status.toUpperCase()}</p>
+              <p><span className="text-white font-bold">TIMER_RUNNING:</span> {timerIntervalRef.current ? 'YES' : 'NO'}</p>
+              <p><span className="text-white font-bold">INTERVAL_ID:</span> {timerIntervalRef.current || 'NONE'}</p>
+              <p><span className="text-white font-bold">ELAPSED:</span> {elapsedSeconds}s</p>
+              <p><span className="text-white font-bold">ACCUMULATED:</span> {accumulatedTimeRef.current}ms</p>
+              <div className="h-px bg-white/5 my-2" />
+              <p><span className="text-white font-bold">GPS_ACCURACY:</span> {accuracy?.toFixed(1) || 'WAITING'}m</p>
+              <p><span className="text-white font-bold">SAMPLES:</span> {acceptedPoints.length}</p>
+              <p><span className="text-white font-bold">REJECTED:</span> {rejectedCount}</p>
+           </div>
+        </div>
+      )}
 
       {/* Main Metrics Area */}
       <div className={clsx(
