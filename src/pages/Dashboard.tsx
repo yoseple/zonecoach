@@ -1,6 +1,6 @@
 import React from 'react';
 import { useRunStore } from '../store/useRunStore';
-import { calculatePace, formatDuration, getZoneAnalysis } from '../utils/calculations';
+import { calculatePace, getZoneAnalysis } from '../utils/calculations';
 import { 
   TrendingUp, 
   Activity, 
