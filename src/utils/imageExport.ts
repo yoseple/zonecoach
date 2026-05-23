@@ -17,10 +17,10 @@ export const saveRecapToDevice = async (
       })
     );
 
-    // 2. Generate PNG blob
-    // We use a higher pixel ratio for better quality
-    const dataUrl = await htmlToImage.toPng(previewElement, {
-      quality: 1.0,
+    // 2. Generate JPEG Blob
+    // We use toBlob for better mobile compatibility and memory management
+    const blob = await htmlToImage.toBlob(previewElement, {
+      quality: 0.95,
       pixelRatio: 3,
       skipAutoScale: true,
       cacheBust: true,
@@ -30,13 +30,19 @@ export const saveRecapToDevice = async (
       }
     });
 
-    // 3. Create anchor and trigger download
+    if (!blob) throw new Error('Failed to generate image blob');
+
+    // 3. Create object URL and trigger download
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.download = filename;
-    link.href = dataUrl;
+    link.href = url;
     document.body.appendChild(link);
     link.click();
+    
+    // Cleanup
     document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   } catch (error) {
     console.error('Failed to save recap photo:', error);
     throw error;

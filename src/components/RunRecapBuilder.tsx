@@ -44,7 +44,7 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
     if (!previewRef.current || !photo) return;
     setIsExporting(true);
     try {
-      const filename = `zonecoach-run-${run.date}-${run.distance.toFixed(2)}mi.png`;
+      const filename = `zonecoach-run-${run.date}-${run.distance.toFixed(2)}mi.jpg`;
       await saveRecapToDevice(previewRef.current, filename);
     } catch (err) {
       console.error('Export failed:', err);
@@ -295,7 +295,7 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
                )}
             </button>
             <p className="text-[9px] font-bold text-slate-400 text-center uppercase tracking-widest px-4 leading-relaxed">
-               Save the PNG first, then send it from your Photos or Files app.
+               Save the JPEG first, then send it from your Photos or Files app.
             </p>
          </div>
       </footer>
