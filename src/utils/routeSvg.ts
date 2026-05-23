@@ -1,4 +1,4 @@
-import { RoutePoint } from '../types';
+import type { RoutePoint } from '../types';
 
 export const generateRouteSvg = (points: RoutePoint[], width: number = 400, height: number = 400, padding: number = 40): string => {
   if (!points || points.length < 2) return '';
