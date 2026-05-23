@@ -5,11 +5,7 @@ import {
   X, 
   Download, 
   Type, 
-  Palette, 
-  Layout as LayoutIcon, 
   Image as ImageIcon,
-  Minimize2,
-  RotateCcw,
   Share2,
   Maximize2
 } from 'lucide-react';
