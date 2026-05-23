@@ -12,10 +12,12 @@ import { ZoneSettings } from './pages/ZoneSettings';
 import { FutureCoaching } from './pages/FutureCoaching';
 import { LiveRun } from './pages/LiveRun';
 import { ShoeTracker } from './pages/ShoeTracker';
+import { ScrollToTop } from './components/ScrollToTop';
 
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Dashboard />} />

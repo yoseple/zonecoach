@@ -33,8 +33,15 @@ export const Layout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   const location = useLocation();
   const { userProfile } = useRunStore();
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
   const isHomePage = location.pathname === '/';
+
+  React.useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo(0, 0);
+    }
+  }, [location.pathname]);
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden font-sans selection:bg-blue-100 selection:text-blue-900">
@@ -145,7 +152,10 @@ export const Layout: React.FC = () => {
         </header>
 
         {/* Content Scroll Area */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+        <div 
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar"
+        >
           <div className="max-w-[1200px] mx-auto p-6 md:p-10">
             <Outlet />
           </div>
