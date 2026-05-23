@@ -34,7 +34,7 @@ export const Layout: React.FC = () => {
   const location = useLocation();
   const { userProfile } = useRunStore();
 
-  const isLiveRunPage = location.pathname === '/live-run';
+  const isHomePage = location.pathname === '/';
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden font-sans selection:bg-blue-100 selection:text-blue-900">
@@ -152,8 +152,8 @@ export const Layout: React.FC = () => {
         </div>
       </main>
 
-      {/* Floating Action Button for Mobile (Central Play Button) - Hidden on Live Run Page */}
-      {!isLiveRunPage && (
+      {/* Floating Action Button for Mobile (Central Play Button) - ONLY on Home Page */}
+      {isHomePage && (
         <div className="md:hidden fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <Link 
             to="/live-run"
