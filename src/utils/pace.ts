@@ -10,9 +10,15 @@ export const secondsToPace = (seconds: number, miles: number): string => {
 };
 
 export const paceToSeconds = (paceStr: string): number => {
-  if (paceStr === '--:--') return 0;
+  if (paceStr === '--:--' || !paceStr) return 0;
   const [m, s] = paceStr.split(':').map(Number);
   return m * 60 + s;
+};
+
+export const formatPace = (paceStr: string): string => paceStr;
+
+export const calculateAveragePace = (seconds: number, miles: number): string => {
+  return secondsToPace(seconds, miles);
 };
 
 export const calculateRollingPace = (points: GPSPoint[], windowSeconds: number = 20): string => {
@@ -36,4 +42,14 @@ export const calculateRollingPace = (points: GPSPoint[], windowSeconds: number =
   if (totalMiles < 0.005) return '--:--'; // Too small to be accurate
   
   return secondsToPace(totalSeconds, totalMiles);
+};
+
+export const isPaceTooFast = (currentPaceSeconds: number, targetPaceMinSeconds: number): boolean => {
+  if (targetPaceMinSeconds <= 0) return false;
+  return currentPaceSeconds < targetPaceMinSeconds;
+};
+
+export const isPaceTooSlow = (currentPaceSeconds: number, targetPaceMaxSeconds: number): boolean => {
+  if (targetPaceMaxSeconds <= 0) return false;
+  return currentPaceSeconds > targetPaceMaxSeconds;
 };

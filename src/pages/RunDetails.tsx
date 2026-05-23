@@ -27,7 +27,8 @@ import {
   Zap,
   Footprints,
   Image as ImageIcon,
-  Edit2
+  Edit2,
+  Volume2
 } from 'lucide-react';
 import { RouteMap } from '../components/RouteMap';
 import { clsx } from 'clsx';
@@ -214,6 +215,40 @@ export const RunDetails: React.FC = () => {
               <p className="text-2xl font-black text-slate-900">{run.calories} <span className="text-xs text-slate-400">kcal</span></p>
             </div>
           </div>
+
+          {/* Coaching Summary */}
+          {run.voiceCoachingEnabled && (
+             <section className="space-y-6">
+                <h3 className="text-xl font-black text-slate-900 italic tracking-tight flex items-center space-x-3 px-2">
+                   <Volume2 size={20} className="text-blue-600" />
+                   <span>Coaching Performance</span>
+                </h3>
+                <div className="bg-white p-8 rounded-[3rem] border border-blue-50 shadow-sm relative overflow-hidden">
+                   <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full -mr-16 -mt-16 opacity-5" />
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-12 relative z-10">
+                      <div className="space-y-4">
+                         <div className="flex items-center justify-between">
+                            <p className="text-xs font-black uppercase tracking-widest text-slate-400">Target Range</p>
+                            <p className="text-lg font-black italic">{run.targetPaceMinSeconds ? formatDuration(run.targetPaceMinSeconds) : '--'} - {run.targetPaceMaxSeconds ? formatDuration(run.targetPaceMaxSeconds) : '--'} /mi</p>
+                         </div>
+                         <p className="text-slate-500 font-medium italic text-sm leading-relaxed">
+                            "{run.coachingSummary}"
+                         </p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                         <div className="bg-slate-50 p-4 rounded-2xl text-center space-y-1">
+                            <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest">Slow Down</p>
+                            <p className="text-xl font-black italic text-rose-500">{run.tooFastAlertCount || 0}</p>
+                         </div>
+                         <div className="bg-slate-50 p-4 rounded-2xl text-center space-y-1">
+                            <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest">Pick It Up</p>
+                            <p className="text-xl font-black italic text-amber-500">{run.tooSlowAlertCount || 0}</p>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+             </section>
+          )}
 
           {/* Analysis Card */}
           <div className={clsx(

@@ -4,43 +4,30 @@ import { useRunStore } from '../store/useRunStore';
 import { useGeolocationTracker } from '../hooks/useGeolocationTracker';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { useRunTimer } from '../hooks/useRunTimer';
+import { useVoiceCoach } from '../hooks/useVoiceCoach';
+import { useRunMediaSession } from '../hooks/useRunMediaSession';
 import { LiveRunMap } from '../components/LiveRunMap';
 import { GpsAccuracyBadge } from '../components/GpsAccuracyBadge';
 import { FinishRunModal } from '../components/FinishRunModal';
-import { TrainingModeBanner } from '../components/TrainingModeBanner';
 import { TrainingProgressBar } from '../components/TrainingProgressBar';
+import { PreRunSetup } from '../components/PreRunSetup';
+import { VoiceCoachStatus } from '../components/VoiceCoachStatus';
 import { formatDuration } from '../utils/calculations';
-import { calculateRollingPace, secondsToPace } from '../utils/pace';
-import { announceMile, speak } from '../utils/speech';
+import { calculateRollingPace, secondsToPace, paceToSeconds } from '../utils/pace';
+import { announceMile, speak, clearSpeechCooldowns } from '../utils/speech';
 import { 
   ChevronDown, 
   ChevronUp, 
-  Map as MapIcon, 
   TrendingUp,
   Terminal,
   Play,
   Pause,
   Square,
-  Volume2,
-  Settings2,
-  Activity,
   Trophy
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
-import type { Run, RunType } from '../types';
+import type { Run, RunType, CoachingSettings } from '../types';
 import { clsx } from 'clsx';
-
-const RUN_TYPES: RunType[] = [
-  'Free Run', 
-  'Zone 2 Run', 
-  'Easy Run', 
-  'Tempo Run', 
-  'Interval Run', 
-  'Long Run', 
-  'Race Pace',
-  'Easy Zone 2 Run',
-  'Recovery Run'
-];
 
 export const LiveRun: React.FC = () => {
   const navigate = useNavigate();
@@ -49,7 +36,18 @@ export const LiveRun: React.FC = () => {
   // Flow State
   const [status, setStatus] = useState<'setup' | 'running' | 'paused' | 'finishing'>('setup');
   const [runType, setRunType] = useState<RunType>('Free Run');
-  const [audioEnabled, setAudioAlerts] = useState(true);
+  const [targetPace, setTargetPace] = useState({ min: '', max: '' });
+  const [coachSettings, setCoachSettings] = useState<CoachingSettings>({
+    enabled: true,
+    paceAlerts: true,
+    mileAnnouncements: true,
+    goalAnnouncements: true,
+    voiceRate: 1,
+    voicePitch: 1,
+    cooldownSeconds: 75,
+    keepScreenAwake: true
+  });
+  
   const [mapExpanded, setMapExpanded] = useState(false);
   const [showDebug, setShowDebug] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -61,7 +59,32 @@ export const LiveRun: React.FC = () => {
   // Hooks
   const timer = useRunTimer();
   const tracker = useGeolocationTracker(status === 'running');
-  const { requestWakeLock, releaseWakeLock } = useWakeLock();
+  const { requestWakeLock, releaseWakeLock, status: wakeLockStatus } = useWakeLock();
+
+  const currentPace = calculateRollingPace(tracker.acceptedPoints);
+  const averagePace = secondsToPace(timer.elapsedSeconds, tracker.totalDistance);
+
+  const { alertCounts } = useVoiceCoach({
+    isActive: status === 'running',
+    isPaused: status === 'paused',
+    currentPace,
+    totalDistance: tracker.totalDistance,
+    elapsedSeconds: timer.elapsedSeconds,
+    targetPaceMin: targetPace.min,
+    targetPaceMax: targetPace.max,
+    settings: coachSettings,
+    runType,
+    isGPSGood: tracker.accuracy !== null && tracker.accuracy <= 35
+  });
+
+  useRunMediaSession(status === 'running', {
+    title: activeWorkout ? activeWorkout.type : 'ZoneCoach Run',
+    artist: runType,
+    album: targetPace.min ? `Target: ${targetPace.min}-${targetPace.max}` : 'Elite Training'
+  }, {
+    onPlay: () => setStatus('running'),
+    onPause: () => setStatus('paused')
+  });
 
   const lastSplitCount = useRef(0);
   const goalReachedSpoken = useRef(false);
@@ -70,6 +93,9 @@ export const LiveRun: React.FC = () => {
   useEffect(() => {
     if (activeWorkout && status === 'setup') {
        setRunType(activeWorkout.type as RunType);
+       if (activeWorkout.targetPaceMin) {
+          setTargetPace({ min: activeWorkout.targetPaceMin, max: activeWorkout.targetPaceMax || '' });
+       }
     }
   }, [activeWorkout, status]);
 
@@ -77,50 +103,54 @@ export const LiveRun: React.FC = () => {
   useEffect(() => {
     if (status === 'running') {
       timer.start();
-      requestWakeLock();
+      if (coachSettings.keepScreenAwake) requestWakeLock();
     } else if (status === 'paused') {
       timer.pause();
     } else if (status === 'setup') {
       timer.reset();
       tracker.reset();
       releaseWakeLock();
+      clearSpeechCooldowns();
     }
-  }, [status]);
+  }, [status, coachSettings.keepScreenAwake, requestWakeLock, releaseWakeLock]);
 
   // Goal Completion Logic
   useEffect(() => {
     if (activeWorkout?.targetDistance && tracker.totalDistance >= activeWorkout.targetDistance && !goalReachedSpoken.current) {
-        if (audioEnabled) {
-            speak(`Workout goal reached. You completed ${activeWorkout.targetDistance} miles.`, {
-                enabled: true,
-                mileAnnouncements: true,
-                paceAlerts: false,
-                rate: 1,
-                pitch: 1
-            });
+        if (coachSettings.enabled && coachSettings.goalAnnouncements) {
+            speak(`Workout goal reached. You completed ${activeWorkout.targetDistance} miles.`, coachSettings);
         }
         goalReachedSpoken.current = true;
     }
-  }, [tracker.totalDistance, activeWorkout, audioEnabled]);
+  }, [tracker.totalDistance, activeWorkout, coachSettings]);
 
-  // Voice announcements
+  // Voice announcements for splits
   useEffect(() => {
     if (tracker.splits.length > lastSplitCount.current) {
       const lastSplit = tracker.splits[tracker.splits.length - 1];
-      if (audioEnabled) {
-        announceMile(lastSplit.mile, lastSplit.pace, {
-          enabled: true,
-          mileAnnouncements: true,
-          paceAlerts: false,
-          rate: 1,
-          pitch: 1
-        });
+      
+      // Check if this was the fastest mile
+      const isFastest = tracker.splits.length > 1 && 
+        [...tracker.splits].sort((a, b) => a.time - b.time)[0].mile === lastSplit.mile;
+
+      if (coachSettings.enabled && coachSettings.mileAnnouncements) {
+        announceMile(lastSplit.mile, lastSplit.pace, isFastest, coachSettings);
       }
       lastSplitCount.current = tracker.splits.length;
     }
-  }, [tracker.splits, audioEnabled]);
+  }, [tracker.splits, coachSettings]);
 
-  const handleStart = () => setStatus('running');
+  const handleStart = (type: RunType, pace: { min: string; max: string }, coach: CoachingSettings) => {
+    setRunType(type);
+    setTargetPace(pace);
+    setCoachSettings(coach);
+    setStatus('running');
+    if (coach.enabled) {
+      const startMsg = activeWorkout ? "Starting today's workout. Keep it controlled." : "Starting session. Good luck.";
+      speak(startMsg, coach);
+    }
+  };
+
   const handlePause = () => setStatus('paused');
   const handleResume = () => setStatus('running');
   const handleEndClick = () => setStatus('finishing');
@@ -138,7 +168,7 @@ export const LiveRun: React.FC = () => {
     const newRun: Run = {
       id: runId,
       date: new Date().toISOString().split('T')[0],
-      title: activeWorkout ? `${activeWorkout.type} (Plan)` : `${runType} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+      title: activeWorkout ? `${activeWorkout.type} (Guided)` : `${runType} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
       type: runType,
       distance: tracker.totalDistance,
       duration: timer.elapsedSeconds,
@@ -157,6 +187,14 @@ export const LiveRun: React.FC = () => {
         acceptedPoints: tracker.acceptedPoints.length,
         rejectedPoints: tracker.rejectedCount
       },
+      // Coaching Data
+      targetPaceMinSeconds: paceToSeconds(targetPace.min),
+      targetPaceMaxSeconds: paceToSeconds(targetPace.max),
+      voiceCoachingEnabled: coachSettings.enabled,
+      tooFastAlertCount: alertCounts.tooFast,
+      tooSlowAlertCount: alertCounts.tooSlow,
+      mileAnnouncementCount: tracker.splits.length,
+      coachingSummary: `Completed ${tracker.totalDistance.toFixed(2)}mi session with ${alertCounts.tooFast + alertCounts.tooSlow} pace corrections.`,
       // Training Linkage
       trainingWorkoutId: activeWorkout?.id,
       trainingPlanId: activePlan?.id,
@@ -168,7 +206,6 @@ export const LiveRun: React.FC = () => {
 
     addRun(newRun);
     
-    // Complete the workout
     if (activePlan && activeWorkout) {
         updateWorkoutStatus(activePlan.id, activeWorkout.id, 'completed', runId);
         setActiveWorkout(null);
@@ -186,11 +223,7 @@ export const LiveRun: React.FC = () => {
     goalReachedSpoken.current = false;
   };
 
-  const currentPace = calculateRollingPace(tracker.acceptedPoints);
-  const averagePace = secondsToPace(timer.elapsedSeconds, tracker.totalDistance);
-
-  // Calculate fastest mile
-  const fastestMile = React.useMemo(() => {
+  const fastestMilePace = React.useMemo(() => {
     if (tracker.splits.length === 0) return '--:--';
     const sorted = [...tracker.splits].sort((a, b) => a.time - b.time);
     return sorted[0].pace;
@@ -199,94 +232,19 @@ export const LiveRun: React.FC = () => {
   // STEP 1: SETUP
   if (status === 'setup') {
     return (
-      <div className="max-w-2xl mx-auto space-y-10 animate-in fade-in duration-500 pb-12">
-        <header className="flex justify-between items-start">
-           <div>
-              <h2 className="text-4xl font-black text-slate-900 tracking-tight italic">Live Tracker</h2>
-              <p className="text-slate-500 font-bold mt-1">Configure your session and hit the road.</p>
-           </div>
-           <button onClick={() => navigate(-1)} className="p-3 bg-slate-50 text-slate-400 rounded-2xl hover:text-slate-900"><X size={20} /></button>
-        </header>
-
-        {activeWorkout && <TrainingModeBanner workout={activeWorkout} />}
-
-        <div className="grid grid-cols-1 gap-6">
-           {/* GPS Status Card */}
-           <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between">
-              <div className="space-y-1">
-                 <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Satellite Signal</p>
-                 <GpsAccuracyBadge accuracy={tracker.accuracy} />
-              </div>
-              <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400">
-                 <MapIcon size={24} />
-              </div>
-           </div>
-
-           {/* Run Type Selector - Hidden or Disabled in Training Mode */}
-           {!activeWorkout && (
-             <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm space-y-6">
-                <div className="flex items-center space-x-3 text-slate-900">
-                   <Activity size={20} className="text-blue-600" />
-                   <h3 className="text-xl font-black italic">Activity Profile</h3>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                   {RUN_TYPES.map(type => (
-                     <button
-                       key={type}
-                       onClick={() => setRunType(type)}
-                       className={clsx(
-                         "py-4 px-2 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2",
-                         runType === type ? "bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-100" : "bg-slate-50 border-transparent text-slate-400 hover:bg-slate-100"
-                       )}
-                     >
-                       {type}
-                     </button>
-                   ))}
-                </div>
-             </div>
-           )}
-
-           {/* Settings Toggles */}
-           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button 
-                onClick={() => setAudioAlerts(!audioEnabled)}
-                className={clsx(
-                  "flex items-center justify-between p-6 rounded-[2rem] border-2 transition-all",
-                  audioEnabled ? "bg-emerald-50 border-emerald-100" : "bg-white border-slate-100 opacity-60"
-                )}
-              >
-                 <div className="flex items-center space-x-3">
-                    <Volume2 size={20} className={audioEnabled ? "text-emerald-600" : "text-slate-400"} />
-                    <span className={clsx("text-xs font-black uppercase tracking-widest", audioEnabled ? "text-emerald-900" : "text-slate-400")}>Audio Alerts</span>
-                 </div>
-                 <div className={clsx("w-8 h-4 rounded-full relative transition-colors", audioEnabled ? "bg-emerald-500" : "bg-slate-200")}>
-                    <div className={clsx("absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all", audioEnabled ? "left-[1.125rem]" : "left-0.5")} />
-                 </div>
-              </button>
-              <div className="bg-slate-50 p-6 rounded-[2rem] flex items-center justify-between opacity-40 grayscale cursor-not-allowed">
-                 <div className="flex items-center space-x-3">
-                    <Settings2 size={20} className="text-slate-400" />
-                    <span className="text-xs font-black uppercase tracking-widest text-slate-400">Target Pace</span>
-                 </div>
-                 <span className="text-[8px] font-black uppercase text-slate-400">Pro Feature</span>
-              </div>
-           </div>
-        </div>
-
-        <button 
-          onClick={handleStart}
-          className="w-full py-8 bg-slate-900 text-white rounded-[2.5rem] font-black uppercase tracking-[0.3em] text-sm shadow-2xl shadow-slate-200 hover:bg-blue-600 transition-all flex items-center justify-center space-x-4 group active:scale-[0.98]"
-        >
-           <Play size={24} fill="currentColor" className="group-hover:scale-110 transition-transform" />
-           <span>Ignition Start</span>
-        </button>
+      <div className="max-w-2xl mx-auto pb-12 px-6">
+        <PreRunSetup 
+          initialType={activeWorkout?.type as RunType}
+          gpsAccuracy={tracker.accuracy}
+          onStart={handleStart}
+        />
       </div>
     );
   }
 
-  // STEP 2 & 3: ACTIVE / PAUSED
   return (
     <div className="fixed inset-0 bg-white z-40 flex flex-col font-sans overflow-hidden select-none">
+      {/* Finish Modal */}
       <FinishRunModal 
         isOpen={status === 'finishing'}
         distance={tracker.totalDistance}
@@ -300,9 +258,19 @@ export const LiveRun: React.FC = () => {
       <header className="h-14 flex items-center justify-between px-6 bg-white border-b border-slate-50 shrink-0">
         <div className="flex items-center space-x-3">
           <div className={clsx("w-2 h-2 rounded-full", status === 'running' ? "bg-emerald-500 animate-pulse" : "bg-amber-500")} />
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 text-nowrap">
-            {activeWorkout ? `Guided: ${activeWorkout.type}` : status === 'running' ? 'Tracking' : 'Paused'}
-          </span>
+          <div className="flex flex-col">
+             <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">
+               {activeWorkout ? `Guided: ${activeWorkout.type}` : status === 'running' ? 'Tracking Session' : 'Session Paused'}
+             </span>
+             <VoiceCoachStatus 
+               settings={coachSettings} 
+               isPaused={status === 'paused'}
+               isGPSGood={tracker.accuracy !== null && tracker.accuracy <= 35}
+               currentPaceSeconds={paceToSeconds(currentPace)}
+               targetMinSeconds={paceToSeconds(targetPace.min)}
+               targetMaxSeconds={paceToSeconds(targetPace.max)}
+             />
+          </div>
         </div>
         <div className="flex items-center space-x-4">
            <button onClick={() => setShowDebug(!showDebug)} className={clsx("p-2 rounded-lg transition-colors", showDebug ? "text-emerald-500 bg-slate-900" : "text-slate-200")}><Terminal size={14} /></button>
@@ -315,15 +283,14 @@ export const LiveRun: React.FC = () => {
         "flex-1 flex flex-col px-6 transition-all duration-500",
         mapExpanded ? "opacity-0 scale-95 pointer-events-none absolute inset-0" : "opacity-100 scale-100 relative"
       )}>
-        <div className="flex-1 flex flex-col justify-center space-y-12 py-4">
-          
+        <div className="flex-1 flex flex-col justify-center space-y-16 py-8">
           {/* Workout Progress Bar */}
           {activeWorkout?.targetDistance && (
             <div className="animate-in slide-in-from-top-4">
                <TrainingProgressBar 
                  current={tracker.totalDistance} 
                  target={activeWorkout.targetDistance} 
-                 label="Assignment Goal"
+                 label="Mission Goal"
                  unit="mi"
                  color="bg-blue-600"
                />
@@ -334,7 +301,7 @@ export const LiveRun: React.FC = () => {
           <div className="text-center space-y-1">
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-300">Distance</p>
             <div className="flex items-baseline justify-center">
-              <span className="text-[9rem] sm:text-[10rem] font-black italic tracking-tighter leading-none text-slate-900 tabular-nums">
+              <span className="text-[9rem] sm:text-[11rem] font-black italic tracking-tighter leading-none text-slate-900 tabular-nums">
                 {tracker.totalDistance.toFixed(2)}
               </span>
               <span className="text-2xl font-black italic text-slate-300 ml-2 uppercase tracking-tighter">mi</span>
@@ -369,7 +336,7 @@ export const LiveRun: React.FC = () => {
           <div className="bg-slate-50 p-6 rounded-[2rem] flex flex-col items-center justify-center space-y-1">
              <Trophy size={18} className="text-slate-300" />
              <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Fastest Mile</p>
-             <p className="text-xl font-black italic text-slate-900">{fastestMile}</p>
+             <p className="text-xl font-black italic text-slate-900">{fastestMilePace}</p>
           </div>
         </div>
       </div>
@@ -420,13 +387,11 @@ export const LiveRun: React.FC = () => {
               <p><span className="text-white">ELAPSED:</span> {timer.elapsedSeconds}s</p>
               <p><span className="text-white">ACCURACY:</span> {tracker.accuracy?.toFixed(1) || '--'}m</p>
               <p><span className="text-white">SAMPLES:</span> {tracker.acceptedPoints.length}</p>
+              <p><span className="text-white">WAKE_LOCK:</span> {wakeLockStatus.toUpperCase()}</p>
+              <p><span className="text-white">ALERTS:</span> F:{alertCounts.tooFast} S:{alertCounts.tooSlow}</p>
            </div>
         </div>
       )}
     </div>
   );
 };
-
-const X = (props: any) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-);

@@ -85,6 +85,15 @@ export interface Run {
   completedTrainingTarget?: boolean;
   completionPercent?: number;
   insights?: TrainingInsight[];
+  // Coaching Data
+  targetPaceMinSeconds?: number;
+  targetPaceMaxSeconds?: number;
+  voiceCoachingEnabled?: boolean;
+  tooFastAlertCount?: number;
+  tooSlowAlertCount?: number;
+  mileAnnouncementCount?: number;
+  trainingGoalAnnouncementCount?: number;
+  coachingSummary?: string;
 }
 
 export interface ZoneSettings {
@@ -139,4 +148,15 @@ export interface PersonalRecord {
   value: string | number;
   date: string;
   runId?: string;
+}
+
+export interface CoachingSettings {
+  enabled: boolean;
+  paceAlerts: boolean;
+  mileAnnouncements: boolean;
+  goalAnnouncements: boolean;
+  voiceRate: number;
+  voicePitch: number;
+  cooldownSeconds: number;
+  keepScreenAwake: boolean;
 }
