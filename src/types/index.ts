@@ -66,7 +66,7 @@ export interface Workout {
   id: string;
   week: number;
   day: string; // 'Monday', etc.
-  type: RunType | 'Rest Day' | 'Strength Day' | 'Recovery Run';
+  type: RunType | 'Rest Day' | 'Strength Day' | 'Recovery Run' | 'Easy Zone 2 Run' | 'Mobility Day';
   targetDistance?: number;
   targetDuration?: number;
   targetZone?: number;

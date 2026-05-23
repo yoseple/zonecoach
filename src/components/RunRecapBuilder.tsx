@@ -8,9 +8,6 @@ import {
   Palette, 
   Layout as LayoutIcon, 
   Image as ImageIcon,
-  Share2,
-  Minimize2,
-  Maximize2,
   RotateCcw
 } from 'lucide-react';
 import { clsx } from 'clsx';

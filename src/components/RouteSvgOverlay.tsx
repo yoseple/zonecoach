@@ -1,14 +1,13 @@
 import React from 'react';
 import { generateRouteSvg } from '../utils/routeSvg';
-import { RoutePoint } from '../types';
+import type { RoutePoint } from '../types';
 
 interface Props {
   points: RoutePoint[];
-  color?: string;
   size?: number;
 }
 
-export const RouteSvgOverlay: React.FC<Props> = ({ points, color = 'white', size = 400 }) => {
+export const RouteSvgOverlay: React.FC<Props> = ({ points, size = 400 }) => {
   const svgString = generateRouteSvg(points, size, size);
   if (!svgString) return null;
 
