@@ -32,7 +32,27 @@ export const saveRecapToDevice = async (
 
     if (!blob) throw new Error('Failed to generate image blob');
 
-    // 3. Create object URL and trigger download
+    // 3. Trigger Save/Share
+    // On iOS/Mobile Safari, navigator.share with a File object is the ONLY reliable 
+    // way to get an image into the 'Photos' app (Camera Roll).
+    const file = new File([blob], filename, { type: 'image/jpeg' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'My Run Recap',
+          text: 'Captured on ZoneCoach',
+        });
+        return; // Success via Share Sheet (which includes 'Save Image')
+      } catch (shareError) {
+        // If user cancelled, don't fallback to download link (it might just fail again)
+        if ((shareError as Error).name === 'AbortError') return;
+        console.warn('Share sheet failed, falling back to download link', shareError);
+      }
+    }
+
+    // 4. Fallback: Create anchor and trigger download (Desktop/Android)
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.download = filename;

@@ -295,7 +295,7 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
                )}
             </button>
             <p className="text-[9px] font-bold text-slate-400 text-center uppercase tracking-widest px-4 leading-relaxed">
-               Save the JPEG first, then send it from your Photos or Files app.
+               Tap above to save to your photos or share with friends.
             </p>
          </div>
       </footer>
