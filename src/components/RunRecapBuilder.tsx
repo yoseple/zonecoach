@@ -175,9 +175,9 @@ export const RunRecapBuilder: React.FC<Props> = ({ run, onClose }) => {
   );
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#F8FAFC] flex flex-col overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] bg-[#F8FAFC] flex flex-col overflow-y-auto">
       {/* Header Bar */}
-      <header className="sticky top-0 z-[60] h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 flex items-center justify-between shrink-0">
+      <header className="sticky top-0 z-[10001] h-16 bg-white/80 backdrop-blur-md border-b border-slate-100 px-6 flex items-center justify-between shrink-0">
          <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white">
                <Palette size={18} />
