@@ -99,7 +99,7 @@ export const PhotoInput: React.FC<Props> = ({ onPhotoSelected, onClear, currentP
       </div>
 
       {isProcessing && (
-        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-[2000] flex flex-col items-center justify-center">
+        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-70 flex flex-col items-center justify-center">
            <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
            <p className="text-sm font-black uppercase tracking-widest text-blue-900">Optimizing Image...</p>
         </div>
