@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useRunStore } from '../store/useRunStore';
 import { calculatePace, formatDuration, getZoneAnalysis } from '../utils/calculations';
-import { Trash2, ChevronRight, Activity, History as HistoryIcon, MapPin, Clock } from 'lucide-react';
+import { Trash2, ChevronRight, Activity, History as HistoryIcon, MapPin, Clock, Footprints } from 'lucide-react';
 import { clsx } from 'clsx';
 
 export const RunHistory: React.FC = () => {

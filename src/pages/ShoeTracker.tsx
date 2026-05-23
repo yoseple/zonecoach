@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useRunStore } from '../store/useRunStore';
-import { Plus, Footprints, ShieldAlert, Calendar, Ruler, Info, ArrowRight } from 'lucide-react';
+import { Plus, Footprints, ShieldAlert, Ruler, Info, ArrowRight } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import type { Shoe } from '../types';
 import { clsx } from 'clsx';
