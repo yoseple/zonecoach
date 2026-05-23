@@ -10,7 +10,8 @@ import {
   BarChart2, 
   Smartphone,
   Menu,
-  User
+  User,
+  Play
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useRunStore } from '../store/useRunStore';
