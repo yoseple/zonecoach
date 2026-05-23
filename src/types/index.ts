@@ -37,13 +37,18 @@ export interface TrainingInsight {
 
 export interface Shoe {
   id: string;
-  name: string;
+  nickname: string;
   brand: string;
+  model: string;
   acquiredDate: string;
   startingMileage: number;
   currentMileage: number;
-  retired: boolean;
+  retirementMileage: number;
+  isRetired: boolean;
   color: string;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Run {
@@ -61,6 +66,8 @@ export interface Run {
   routePoints?: RoutePoint[];
   hrSamples?: HRSample[];
   shoeId?: string;
+  shoeName?: string;
+  gearMileageApplied?: boolean;
   source?: 'Manual' | 'Phone GPS' | 'Apple Watch';
   accuracyMetadata?: {
     avgAccuracy: number;

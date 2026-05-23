@@ -83,6 +83,12 @@ export const RunHistory: React.FC = () => {
                              <span>{run.avgHeartRate} bpm</span>
                           </span>
                        )}
+                       {run.shoeName && (
+                          <span className="flex items-center space-x-1.5 text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">
+                             <Footprints size={10} strokeWidth={3} />
+                             <span className="text-[9px]">{run.shoeName}</span>
+                          </span>
+                       )}
                     </div>
                   </div>
 

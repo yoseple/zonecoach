@@ -1,13 +1,14 @@
 import React from 'react';
-import { X, Check, Save, RotateCcw, AlertCircle } from 'lucide-react';
+import { X, Check, Save, RotateCcw, AlertCircle, Footprints } from 'lucide-react';
 import { formatDuration } from '../utils/calculations';
+import { ShoeSelector } from './ShoeSelector';
 
 interface Props {
   isOpen: boolean;
   distance: number;
   time: number;
   pace: string;
-  onLog: (notes: string) => void;
+  onLog: (notes: string, shoeId?: string) => void;
   onContinue: () => void;
   onDiscard: () => void;
 }
@@ -22,6 +23,7 @@ export const FinishRunModal: React.FC<Props> = ({
   onDiscard 
 }) => {
   const [notes, setNotes] = React.useState('');
+  const [selectedShoeId, setSelectedShoeId] = React.useState('');
   const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false);
 
   if (!isOpen) return null;
@@ -76,6 +78,15 @@ export const FinishRunModal: React.FC<Props> = ({
               </div>
            </div>
 
+           {/* Shoe Selection */}
+           <div className="space-y-4">
+              <div className="flex items-center space-x-2 ml-1">
+                 <Footprints size={18} className="text-slate-400" />
+                 <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Assignment Gear</h4>
+              </div>
+              <ShoeSelector selectedShoeId={selectedShoeId} onSelect={setSelectedShoeId} />
+           </div>
+
            {/* Notes */}
            <div className="space-y-4">
               <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 ml-1">Activity Notes</label>
@@ -90,7 +101,7 @@ export const FinishRunModal: React.FC<Props> = ({
 
         <footer className="p-8 border-t border-slate-50 space-y-4 shrink-0 bg-white rounded-b-[3rem]">
            <button 
-             onClick={() => onLog(notes)}
+             onClick={() => onLog(notes, selectedShoeId)}
              className="w-full py-5 bg-slate-900 text-white rounded-[1.5rem] font-black uppercase tracking-widest text-xs flex items-center justify-center space-x-3 shadow-2xl shadow-slate-200 hover:bg-blue-600 transition-all active:scale-[0.98]"
            >
               <Save size={18} />

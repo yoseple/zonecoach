@@ -26,7 +26,8 @@ import {
   X,
   Zap,
   Footprints,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Edit2
 } from 'lucide-react';
 import { RouteMap } from '../components/RouteMap';
 import { clsx } from 'clsx';
@@ -36,8 +37,9 @@ import { RunRecapBuilder } from '../components/RunRecapBuilder';
 export const RunDetails: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { runs, userProfile, shoes, updateShoeMileage } = useRunStore();
+  const { runs, userProfile, shoes, updateRunShoe } = useRunStore();
   const [showRecap, setShowRecap] = React.useState(false);
+  const [isEditingShoe, setIsEditingShoe] = React.useState(false);
   
   const run = runs.find((r) => r.id === id);
 
@@ -68,10 +70,11 @@ export const RunDetails: React.FC = () => {
                records.longestRun.run?.id === run.id;
 
   const currentShoe = shoes.find(s => s.id === run.shoeId);
+  const activeShoes = shoes.filter(s => !s.isRetired || s.id === run.shoeId);
 
   const handleLinkShoe = (shoeId: string) => {
-    updateShoeMileage(shoeId, run.distance);
-    alert('Shoe mileage updated!');
+    updateRunShoe(run.id, shoeId || undefined);
+    setIsEditingShoe(false);
   };
 
   const getAccuracyRating = (avg: number) => {
@@ -258,39 +261,90 @@ export const RunDetails: React.FC = () => {
 
           {/* Shoe / Gear Tracker Integration */}
           <div className="space-y-6">
-             <h3 className="text-xl font-black text-slate-900 italic tracking-tight flex items-center space-x-3">
-                <Footprints size={20} className="text-slate-400" />
-                <span>Gear Used</span>
-             </h3>
-             {currentShoe ? (
-                <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between">
-                   <div className="flex items-center space-x-4">
-                      <div className={clsx("w-12 h-12 rounded-2xl flex items-center justify-center text-white", currentShoe.color)}>
-                         <Footprints size={24} />
+             <div className="flex items-center justify-between px-2">
+                <h3 className="text-xl font-black text-slate-900 italic tracking-tight flex items-center space-x-3">
+                   <Footprints size={20} className="text-slate-400" />
+                   <span>Gear Used</span>
+                </h3>
+                {currentShoe && !isEditingShoe && (
+                   <button 
+                     onClick={() => setIsEditingShoe(true)}
+                     className="text-[10px] font-black uppercase text-blue-600 tracking-widest hover:underline flex items-center space-x-1"
+                   >
+                      <Edit2 size={10} />
+                      <span>Change Gear</span>
+                   </button>
+                )}
+             </div>
+             
+             {isEditingShoe ? (
+                <div className="bg-white p-8 rounded-[2.5rem] border border-blue-100 shadow-xl animate-in zoom-in-95 space-y-6">
+                   <div className="flex items-center justify-between">
+                      <p className="text-xs font-black uppercase text-slate-400 tracking-widest">Select Different Shoes</p>
+                      <button onClick={() => setIsEditingShoe(false)} className="text-slate-300 hover:text-slate-900"><X size={18} /></button>
+                   </div>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {activeShoes.map(s => (
+                         <button
+                           key={s.id}
+                           onClick={() => handleLinkShoe(s.id)}
+                           className={clsx(
+                             "flex items-center space-x-4 p-4 rounded-2xl border-2 transition-all text-left",
+                             run.shoeId === s.id ? "border-blue-600 bg-blue-50" : "border-slate-50 bg-slate-50 hover:border-slate-200"
+                           )}
+                         >
+                            <div className={clsx("w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0", s.color)}>
+                               <Footprints size={18} />
+                            </div>
+                            <div className="min-w-0">
+                               <p className="font-black text-sm truncate">{s.nickname || `${s.brand} ${s.model}`}</p>
+                               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{s.currentMileage.toFixed(1)} mi total</p>
+                            </div>
+                         </button>
+                      ))}
+                      <button 
+                         onClick={() => handleLinkShoe('')}
+                         className="flex items-center justify-center p-4 rounded-2xl border-2 border-dashed border-slate-200 text-slate-400 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 transition-all text-[10px] font-black uppercase tracking-widest"
+                      >
+                         Remove Gear
+                      </button>
+                   </div>
+                </div>
+             ) : currentShoe ? (
+                <div className="bg-white p-8 rounded-[3rem] border border-slate-100 shadow-sm flex items-center justify-between group hover:shadow-xl transition-all duration-500">
+                   <div className="flex items-center space-x-6">
+                      <div className={clsx("w-16 h-16 rounded-[1.75rem] flex items-center justify-center text-white shadow-lg", currentShoe.color)}>
+                         <Footprints size={32} />
                       </div>
                       <div>
-                         <p className="font-black text-slate-900">{currentShoe.name}</p>
-                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{currentShoe.brand} • {currentShoe.currentMileage.toFixed(1)} mi total</p>
+                         <p className="text-2xl font-black italic text-slate-900 tracking-tight">{currentShoe.nickname || `${currentShoe.brand} ${currentShoe.model}`}</p>
+                         <div className="flex items-center space-x-3 mt-1">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{currentShoe.brand} {currentShoe.model}</p>
+                            <div className="w-1 h-1 bg-slate-200 rounded-full" />
+                            <p className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em]">+{run.distance.toFixed(2)} mi added</p>
+                         </div>
                       </div>
                    </div>
-                   <div className="px-4 py-1.5 bg-slate-50 rounded-full text-[10px] font-black uppercase text-slate-400">Attached</div>
+                   <div className="hidden sm:flex items-center space-x-2 bg-emerald-50 text-emerald-600 px-4 py-2 rounded-full border border-emerald-100">
+                      <ShieldCheck size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Active Pair</span>
+                   </div>
                 </div>
              ) : (
-                <div className="bg-slate-50 p-6 rounded-[2.5rem] border border-dashed border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-                   <p className="text-sm font-bold text-slate-400 italic text-center sm:text-left">Track shoe mileage to know when to replace them.</p>
-                   <div className="flex gap-2">
-                      {shoes.length > 0 ? (
-                         <select 
-                           onChange={(e) => handleLinkShoe(e.target.value)}
-                           className="bg-white px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 outline-none"
-                         >
-                            <option>Select Gear...</option>
-                            {shoes.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                         </select>
-                      ) : (
-                         <Link to="/gear" className="px-6 py-2 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg active:scale-95">Add Shoes</Link>
-                      )}
+                <div className="bg-slate-50 p-10 rounded-[3rem] border border-dashed border-slate-200 flex flex-col items-center justify-center text-center space-y-4">
+                   <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-slate-200 shadow-sm">
+                      <Footprints size={32} strokeWidth={1} />
                    </div>
+                   <div className="space-y-1">
+                      <p className="text-slate-400 font-bold italic">No shoes linked to this assignment.</p>
+                      <p className="text-[10px] text-slate-300 font-black uppercase tracking-widest">Gear tracking prevents overload and repetitive strain.</p>
+                   </div>
+                   <button 
+                     onClick={() => setIsEditingShoe(true)}
+                     className="px-8 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl active:scale-95 transition-all"
+                   >
+                      Link Shoes
+                   </button>
                 </div>
              )}
           </div>

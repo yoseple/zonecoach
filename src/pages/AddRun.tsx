@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
 import { useRunStore } from '../store/useRunStore';
-import type { RunType, Split, RoutePoint } from '../types';
+import type { Run, RunType, Split, RoutePoint } from '../types';
 import { parseGPX } from '../utils/gpxParser';
 import { 
   Calendar, 
@@ -15,9 +15,11 @@ import {
   ChevronRight,
   Zap,
   Activity,
-  Plus
+  Plus,
+  Footprints
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { ShoeSelector } from '../components/ShoeSelector';
 
 const RUN_TYPES: RunType[] = [
   'Free Run', 
@@ -47,6 +49,7 @@ export const AddRun: React.FC = () => {
   const [splits, setSplits] = useState<Split[]>([]);
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>([]);
   const [linkToWorkoutId, setLinkToWorkoutId] = useState('');
+  const [selectedShoeId, setSelectedShoeId] = useState('');
 
   const activePlan = useRunStore((state) => state.plans.find(p => p.id === state.activePlanId));
   const pendingWorkouts = activePlan?.workouts.filter(w => w.status === 'pending') || [];
@@ -78,7 +81,7 @@ export const AddRun: React.FC = () => {
     const totalSeconds = (Number(hours) * 3600) + (Number(minutes) * 60) + Number(seconds);
     const runId = uuidv4();
     
-    const newRun = {
+    const newRun: Run = {
       id: runId,
       date,
       title: title || `${type} on ${date}`,
@@ -91,17 +94,17 @@ export const AddRun: React.FC = () => {
       notes,
       splits,
       routePoints,
+      shoeId: selectedShoeId || undefined,
+      source: 'Manual'
     };
     
     addRun(newRun);
     
     if (linkToWorkoutId && activePlan) {
-      useRunStore.getState().updateWorkoutStatus(activePlan.id, linkToWorkoutId, 'completed');
-      // Note: In a real app we'd also store the runId on the workout, 
-      // but the current store action only updates status.
+      useRunStore.getState().updateWorkoutStatus(activePlan.id, linkToWorkoutId, 'completed', runId);
     }
     
-    navigate('/history');
+    navigate(`/run/${runId}`);
   };
 
   return (
@@ -271,6 +274,17 @@ export const AddRun: React.FC = () => {
                 <textarea rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="How did it go? Any soreness? Discipline notes..." className="w-full pl-14 pr-6 py-5 bg-slate-50 border-2 border-transparent focus:border-blue-100 focus:bg-white rounded-3xl outline-none font-bold text-slate-700 transition-all placeholder:text-slate-300 resize-none" />
               </div>
             </div>
+          </section>
+
+          {/* Gear Selection */}
+          <section className="bg-white p-8 md:p-10 rounded-[3rem] shadow-sm border border-slate-100 space-y-8">
+            <div className="flex items-center space-x-4">
+               <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                  <Footprints size={24} strokeWidth={2.5} />
+               </div>
+               <h3 className="text-2xl font-black text-slate-900">Gear Deployment</h3>
+            </div>
+            <ShoeSelector selectedShoeId={selectedShoeId} onSelect={setSelectedShoeId} />
           </section>
         </div>
 

@@ -125,7 +125,7 @@ export const LiveRun: React.FC = () => {
   const handleResume = () => setStatus('running');
   const handleEndClick = () => setStatus('finishing');
   
-  const handleLog = (notes: string) => {
+  const handleLog = (notes: string, shoeId?: string) => {
     if (isSaving) return;
     setIsSaving(true);
 
@@ -149,6 +149,7 @@ export const LiveRun: React.FC = () => {
       splits: tracker.splits.map(s => ({ mile: s.mile, time: Math.round(s.time / 1000) })),
       routePoints: tracker.acceptedPoints.map(p => ({ lat: p.lat, lng: p.lng, time: new Date(p.timestamp).toISOString() })),
       source: 'Phone GPS',
+      shoeId: shoeId,
       accuracyMetadata: {
         avgAccuracy,
         bestAccuracy,
