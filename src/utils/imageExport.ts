@@ -66,7 +66,7 @@ export const saveRecapToDevice = async (
   try {
     const exportOptions = {
       cacheBust: true,
-      pixelRatio: 1, // Start with 1 for reliability, provisioned by large target dimensions
+      pixelRatio: 1, // High resolution is already handled by target dimensions
       backgroundColor: "#000000",
       width: targetDimensions.width,
       height: targetDimensions.height,
@@ -117,7 +117,7 @@ export const saveRecapToDevice = async (
     
     // Cleanup
     setTimeout(() => {
-      document.body.removeChild(link);
+      if (document.body.contains(link)) document.body.removeChild(link);
       URL.revokeObjectURL(url);
     }, 1500);
 
